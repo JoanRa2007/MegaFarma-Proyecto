@@ -1,0 +1,11 @@
+# Perfil de desarrollo: PostgreSQL levantado con "docker compose up -d".
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/megafarma
+    username: megafarma
+    password: megafarma
+
+logging:
+  level:
+    root: INFO
+    pe.edu.upeu.megafarma: DEBUG

@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: MegafarmaBackend
+  profiles:
+    # dev   = PostgreSQL (docker compose up -d)
+    # local = H2 en archivo, sin instalar nada
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jpa:
+    hibernate:
+      # El esquema lo crea Flyway (db/migration); Hibernate solo valida.
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+  api-docs:
+    enabled: true
+
+app:
+  # Origenes web autorizados (la app movil nativa no usa CORS).
+  cors:
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081
+  jwt:
+    # Clave HMAC en Base64 (minimo 256 bits). SOLO para desarrollo:
+    # en produccion se inyecta con la variable de entorno APP_JWT_SECRET.
+    secret: ${APP_JWT_SECRET:bWVnYWZhcm1hLWNsYXZlLWRlLWRlc2Fycm9sbG8tc29sby1wYXJhLXBydWViYXMtbG9jYWxlcy0yMDI2LXVwZXU=}
+    expiracion-minutos: 480
+  seguridad:
+    max-intentos-fallidos: 5
+  inventario:
+    dias-alerta-vencimiento: 60
+  # Crea usuarios de prueba y lotes de demostracion si la base esta vacia.
+  datos-demo: true
