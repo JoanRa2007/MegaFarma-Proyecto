@@ -1,0 +1,210 @@
+### Megafarma · Pruebas manuales de la API
+### Se ejecuta desde IntelliJ IDEA (clic en la flecha verde de cada petición).
+### Ejecute primero un login: guarda el token y las demás peticiones lo usan.
+
+@host = http://localhost:8080
+
+### 0. Estado del servicio (público)
+GET {{host}}/api/health
+
+### 1. Sin token -> 401
+GET {{host}}/api/v1/productos
+
+### 2. Login como VENDEDOR
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{"username": "vendedor", "password": "Venta123"}
+
+> {% client.global.set("token", response.body.token); %}
+
+### 2b. Login como ALMACENERO
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{"username": "almacen", "password": "Almacen123"}
+
+> {% client.global.set("token", response.body.token); %}
+
+### 2c. Login como ADMIN
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{"username": "admin", "password": "Admin123"}
+
+> {% client.global.set("token", response.body.token); %}
+
+### 2d. Login incorrecto -> 401
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{"username": "admin", "password": "clave-mala"}
+
+### 3. Quién soy
+GET {{host}}/api/v1/auth/me
+Authorization: Bearer {{token}}
+
+### 4. Buscar productos (HU-03)
+GET {{host}}/api/v1/productos?q=para
+Authorization: Bearer {{token}}
+
+### 5. Registrar un producto (HU-01) · ADMIN o ALMACENERO
+POST {{host}}/api/v1/productos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "codigo": "MED-0100",
+  "nombre": "Aspirina 100 mg",
+  "principioActivo": "Ácido acetilsalicílico",
+  "presentacion": "Caja x 100 tabletas",
+  "laboratorio": "Bayer",
+  "precioVenta": 0.50,
+  "stockMinimo": 50,
+  "requiereReceta": false,
+  "categoriaId": 1
+}
+
+### 5b. Producto inválido -> 400 con errores por campo
+POST {{host}}/api/v1/productos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"codigo": "", "nombre": "", "precioVenta": 0, "stockMinimo": -1}
+
+### 6. Actualizar un producto (HU-02)
+PUT {{host}}/api/v1/productos/21
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "codigo": "MED-0100",
+  "nombre": "Aspirina 100 mg (protect)",
+  "principioActivo": "Ácido acetilsalicílico",
+  "presentacion": "Caja x 100 tabletas",
+  "laboratorio": "Bayer",
+  "precioVenta": 0.60,
+  "stockMinimo": 50,
+  "requiereReceta": false,
+  "categoriaId": 1
+}
+
+### 7. Desactivar un producto (HU-04)
+DELETE {{host}}/api/v1/productos/21
+Authorization: Bearer {{token}}
+
+### 8. Stock de Paracetamol con sus lotes (HU-06)
+GET {{host}}/api/v1/inventario/stock/1
+Authorization: Bearer {{token}}
+
+### 9. Registrar una entrada por lote (HU-05) · ADMIN o ALMACENERO
+POST {{host}}/api/v1/inventario/entradas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productoId": 4,
+  "numeroLote": "L-AZI-01",
+  "fechaVencimiento": "2027-12-31",
+  "cantidad": 60,
+  "precioCompra": 2.80,
+  "claveIdempotencia": "entrada-demo-001"
+}
+
+### 10. Registrar una venta con FEFO (HU-09) · ADMIN o VENDEDOR
+### 160 de Paracetamol: 150 salen de L-PARA-01 (vence antes) y 10 de L-PARA-02.
+POST {{host}}/api/v1/ventas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "medioPago": "YAPE",
+  "detalles": [
+    {"productoId": 1, "cantidad": 160},
+    {"productoId": 2, "cantidad": 10}
+  ],
+  "claveIdempotencia": "venta-demo-001"
+}
+
+### 10b. Stock insuficiente -> 409
+POST {{host}}/api/v1/ventas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"medioPago": "EFECTIVO", "detalles": [{"productoId": 1, "cantidad": 9999}]}
+
+### 11. Detalle de una venta (HU-10)
+GET {{host}}/api/v1/ventas/1
+Authorization: Bearer {{token}}
+
+### 12. Ventas del mes (HU-11)
+GET {{host}}/api/v1/ventas
+Authorization: Bearer {{token}}
+
+### 13. Anular una venta (HU-12) · solo ADMIN (vendedor -> 403)
+POST {{host}}/api/v1/ventas/1/anular
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"motivo": "Venta registrada por error"}
+
+### 14. Kardex de Paracetamol (HU-37)
+GET {{host}}/api/v1/inventario/kardex/1
+Authorization: Bearer {{token}}
+
+### 15. Alertas: resumen, stock mínimo y vencimientos (HU-41, HU-08, HU-13)
+GET {{host}}/api/v1/alertas/resumen
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/api/v1/alertas/stock-minimo
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/api/v1/alertas/vencimientos?dias=60
+Authorization: Bearer {{token}}
+
+### 16. Ajuste por conteo físico (HU-07) · ADMIN o ALMACENERO
+POST {{host}}/api/v1/inventario/ajustes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"loteId": 3, "cantidadContada": 195, "motivo": "Cinco blísteres dañados"}
+
+### 17. Baja de un lote vencido (HU-16) · el lote 5 es L-LORA-01, ya vencido
+POST {{host}}/api/v1/inventario/lotes/5/baja
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"motivo": "Vencido en estante"}
+
+### 18. Reportes · solo ADMIN (HU-17 a HU-20)
+GET {{host}}/api/v1/reportes/ventas
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/api/v1/reportes/mas-vendidos?limite=5
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/api/v1/reportes/inventario
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/api/v1/reportes/bajas
+Authorization: Bearer {{token}}
+
+### 19. Usuarios · solo ADMIN (HU-22 a HU-24)
+GET {{host}}/api/v1/usuarios
+Authorization: Bearer {{token}}
+
+###
+POST {{host}}/api/v1/usuarios
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"username": "maria", "password": "Maria12345", "nombreCompleto": "María Quispe", "rol": "VENDEDOR"}
+
+###
+PATCH {{host}}/api/v1/usuarios/4/estado?activo=false
+Authorization: Bearer {{token}}
