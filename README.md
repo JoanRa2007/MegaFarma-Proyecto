@@ -2,11 +2,19 @@
 
 Sistema de ventas e inventario de la botica **Megafarma**. Proyecto del curso Desarrollo de Aplicaciones Móviles (UPeU, Ingeniería de Sistemas, ciclo VI).
 
-| Carpeta | Contenido |
-|---|---|
-| [`megafarma-backend/`](megafarma-backend) | API REST en Spring Boot 4 (Java 21) con JWT, PostgreSQL, Flyway, Swagger y 71 pruebas automáticas |
+| Carpeta | Parte | Contenido |
+|---|---|---|
+| [`megafarma-backend/`](megafarma-backend) | Backend | API REST en Spring Boot 4 (Java 21) con JWT, PostgreSQL, Flyway, Swagger y 71 pruebas automáticas |
+| [`megafarma-app/`](megafarma-app) | Frontend (app + web) | Kotlin Multiplatform + Compose Multiplatform: un solo código que genera la app Android, la página web (Kotlin/Wasm) y la app iOS |
 
-Para ejecutar y probar el backend, ver su [README](megafarma-backend/README.md). Para entender el código, empezar por la [guía de estudio](megafarma-backend/GUIA_ESTUDIO.md).
+```
+App Android ─┐
+Página web  ─┼── JSON/HTTP + token JWT ──▶ Backend (Spring Boot, :8080) ──▶ PostgreSQL
+App iOS     ─┘
+```
+
+- Backend: cómo ejecutarlo y probarlo en su [README](megafarma-backend/README.md); para entender el código, la [guía de estudio](megafarma-backend/GUIA_ESTUDIO.md).
+- Frontend: arquitectura, pantallas y cómo ejecutarlo en su [README](megafarma-app/README.md).
 
 ## Ramas
 
@@ -16,4 +24,6 @@ Para ejecutar y probar el backend, ver su [README](megafarma-backend/README.md).
 | `develop` | Integración del trabajo terminado |
 | `feature/<módulo>` | Una rama por módulo; al terminar se une a `develop` |
 
-Módulos: `configuracion-base`, `modelo-datos`, `seguridad-jwt`, `catalogo`, `inventario`, `ventas`, `reportes`, `pruebas` y `documentacion`.
+Backend: `configuracion-base`, `modelo-datos`, `seguridad-jwt`, `catalogo`, `inventario`, `ventas`, `reportes`, `pruebas` y `documentacion`.
+
+Frontend: `frontend-app-web`.
