@@ -19,6 +19,8 @@ public interface VentaService {
 
     VentaResponseDTO buscar(Long id);
 
+    java.util.Optional<VentaResponseDTO> buscarPorClave(String clave);
+
     PaginaResponseDTO<VentaResponseDTO> listar(LocalDate desde, LocalDate hasta,
                                                int pagina, int tamanio);
 
