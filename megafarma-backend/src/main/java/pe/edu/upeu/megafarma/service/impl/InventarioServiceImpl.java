@@ -52,19 +52,25 @@ public class InventarioServiceImpl implements InventarioService {
     private final MovimientoInventarioRepository movimientoRepository;
     private final UsuarioActual usuarioActual;
     private final int diasAlertaPorDefecto;
+    private final int diasCritico;
+    private final int diasMedio;
 
     public InventarioServiceImpl(ProductoRepository productoRepository,
                                  LoteRepository loteRepository,
                                  MovimientoInventarioRepository movimientoRepository,
                                  UsuarioActual usuarioActual,
                                  // @Value: inyecta un valor de application.yaml (lo que va tras ':' es el valor por defecto)
-                                 @Value("${app.inventario.dias-alerta-vencimiento:60}") int diasAlertaPorDefecto) {
+                                 @Value("${app.inventario.dias-alerta-vencimiento:90}") int diasAlertaPorDefecto,
+                                 @Value("${app.inventario.dias-critico:30}") int diasCritico,
+                                 @Value("${app.inventario.dias-medio:60}") int diasMedio) {
         // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.productoRepository = productoRepository;
         this.loteRepository = loteRepository;
         this.movimientoRepository = movimientoRepository;
         this.usuarioActual = usuarioActual;
         this.diasAlertaPorDefecto = diasAlertaPorDefecto;
+        this.diasCritico = diasCritico;
+        this.diasMedio = diasMedio;
     }
 
     /*
@@ -165,10 +171,12 @@ public class InventarioServiceImpl implements InventarioService {
         }
 
         // stream: recorre la coleccion aplicando map/filter y junta el resultado
-        return productoRepository.findByActivoTrueOrderByNombreAsc().stream()
+        List<StockProductoDTO> stock = productoRepository.findByActivoTrueOrderByNombreAsc().stream()
                 .map(p -> InventarioMapper.toStock(
                         p, lotesPorProducto.getOrDefault(p.getId(), List.of()), hoy))
                 .toList();
+        stock.forEach(s -> s.getLotes().forEach(this::conNivel));
+        return stock;
     }
 
     /* HU-06 Consultar el stock por producto y lote. */
@@ -177,7 +185,9 @@ public class InventarioServiceImpl implements InventarioService {
     public StockProductoDTO stockDeProducto(Long productoId) {
         Producto producto = obtenerProducto(productoId);
         List<Lote> lotes = loteRepository.findByProductoIdOrderByFechaVencimientoAscIdAsc(productoId);
-        return InventarioMapper.toStock(producto, lotes, LocalDate.now());
+        StockProductoDTO stock = InventarioMapper.toStock(producto, lotes, LocalDate.now());
+        stock.getLotes().forEach(this::conNivel);
+        return stock;
     }
 
     /*
@@ -272,8 +282,28 @@ public class InventarioServiceImpl implements InventarioService {
     public List<LoteResponseDTO> alertasVencimiento(Integer dias) {
         LocalDate hoy = LocalDate.now();
         return loteRepository.porVencer(hoy.plusDays(diasValidos(dias))).stream()
-                .map(l -> InventarioMapper.toResponse(l, hoy))
+                .map(l -> conNivel(InventarioMapper.toResponse(l, hoy)))
                 .toList();
+    }
+
+    /*
+     * Nivel de urgencia de un lote (HU-14):
+     *  CRITICO = vencido o vence en <= 30 dias; MEDIO = <= 60 dias; BAJO = <= 90 dias.
+     * Los umbrales se configuran en application.yaml (app.inventario.*).
+     */
+    private LoteResponseDTO conNivel(LoteResponseDTO lote) {
+        String nivel = null;
+        if (!lote.isDadoDeBaja() && lote.getCantidadActual() > 0) {
+            if (lote.isVencido() || lote.getDiasParaVencer() <= diasCritico) {
+                nivel = pe.edu.upeu.megafarma.enums.NivelAlerta.CRITICO.name();
+            } else if (lote.getDiasParaVencer() <= diasMedio) {
+                nivel = pe.edu.upeu.megafarma.enums.NivelAlerta.MEDIO.name();
+            } else if (lote.getDiasParaVencer() <= diasAlertaPorDefecto) {
+                nivel = pe.edu.upeu.megafarma.enums.NivelAlerta.BAJO.name();
+            }
+        }
+        lote.setNivelAlerta(nivel);
+        return lote;
     }
 
     /* HU-41 Contadores de alertas para el panel de inicio. */
@@ -287,7 +317,14 @@ public class InventarioServiceImpl implements InventarioService {
                 alertasStockMinimo().size(),
                 lotes.size() - vencidos,
                 vencidos,
-                diasValidos);
+                diasValidos,
+                contar(lotes, "CRITICO"),
+                contar(lotes, "MEDIO"),
+                contar(lotes, "BAJO"));
+    }
+
+    private static int contar(List<LoteResponseDTO> lotes, String nivel) {
+        return (int) lotes.stream().filter(l -> nivel.equals(l.getNivelAlerta())).count();
     }
 
     private int diasValidos(Integer dias) {

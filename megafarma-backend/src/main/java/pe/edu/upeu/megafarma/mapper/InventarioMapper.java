@@ -35,7 +35,8 @@ public final class InventarioMapper {
                 lote.getPrecioCompra(),
                 lote.isDadoDeBaja(),
                 lote.estaVencido(hoy),
-                ChronoUnit.DAYS.between(hoy, lote.getFechaVencimiento()));
+                ChronoUnit.DAYS.between(hoy, lote.getFechaVencimiento()),
+                null);
     }
 
     /*
