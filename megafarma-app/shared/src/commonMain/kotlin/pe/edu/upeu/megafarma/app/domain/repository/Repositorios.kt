@@ -8,6 +8,7 @@ import pe.edu.upeu.megafarma.app.domain.model.LineaVenta
 import pe.edu.upeu.megafarma.app.domain.model.Lote
 import pe.edu.upeu.megafarma.app.domain.model.MedioPago
 import pe.edu.upeu.megafarma.app.domain.model.NuevaEntrada
+import pe.edu.upeu.megafarma.app.domain.model.PaginaVentas
 import pe.edu.upeu.megafarma.app.domain.model.Producto
 import pe.edu.upeu.megafarma.app.domain.model.ProductoVendido
 import pe.edu.upeu.megafarma.app.domain.model.ReporteInventario
@@ -49,7 +50,8 @@ interface InventarioRepository {
 
 interface VentaRepository {
     suspend fun registrar(lineas: List<LineaVenta>, medioPago: MedioPago, clave: String): Resultado<Venta>
-    suspend fun listar(desde: String?, hasta: String?): Resultado<List<Venta>>
+    suspend fun listar(desde: String?, hasta: String?, pagina: Int, tamanio: Int): Resultado<PaginaVentas>
+    suspend fun buscar(id: Long): Resultado<Venta>
     suspend fun anular(id: Long, motivo: String): Resultado<Venta>
 }
 

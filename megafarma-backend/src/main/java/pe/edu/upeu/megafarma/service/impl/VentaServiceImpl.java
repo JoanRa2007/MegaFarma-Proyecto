@@ -235,6 +235,17 @@ public class VentaServiceImpl implements VentaService {
         return VentaMapper.toResponse(guardada);
     }
 
+    /* Sprint 2 · R03: venta ya registrada con esa clave de idempotencia. */
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Optional<VentaResponseDTO> buscarPorClave(String clave) {
+        String limpia = limpiar(clave);
+        if (limpia == null) {
+            return java.util.Optional.empty();
+        }
+        return ventaRepository.findByClaveIdempotencia(limpia).map(VentaMapper::toResponse);
+    }
+
     /* HU-10 Consultar el detalle de una venta. */
     @Override
     // readOnly: transaccion solo de lectura (mas liviana, no guarda cambios)
@@ -250,8 +261,14 @@ public class VentaServiceImpl implements VentaService {
                                                       int pagina, int tamanio) {
 
         RangoFechas rango = RangoFechas.de(desde, hasta);
-        Pageable pageable = PaginacionUtil.crear(
-                pagina, tamanio, "fecha", "desc", Set.of("fecha"), "fecha");
+        // Orden estable: fecha descendente y, si coinciden, id descendente.
+        // Asi al recorrer las paginas ninguna venta se repite ni se omite (CA-11-05).
+        Pageable base = PaginacionUtil.crear(pagina, tamanio, "fecha", "desc", Set.of("fecha"), "fecha");
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                base.getPageNumber(), base.getPageSize(),
+                org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Order.desc("fecha"),
+                        org.springframework.data.domain.Sort.Order.desc("id")));
 
         Page<Venta> resultado = ventaRepository.porRango(rango.inicio(), rango.fin(), pageable);
 
@@ -268,7 +285,9 @@ public class VentaServiceImpl implements VentaService {
     @Transactional
     public VentaResponseDTO anular(Long id, String motivo) {
 
-        Venta venta = obtener(id);
+        // Sprint 2 · R02: la venta se lee bloqueada, asi el estado se valida sin carreras.
+        Venta venta = ventaRepository.buscarParaActualizar(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la venta con id " + id));
 
         if (venta.getEstado() == EstadoVenta.ANULADA) {
             throw new ReglaNegocioException("La venta " + venta.getNumero() + " ya está anulada");
