@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import pe.edu.upeu.megafarma.exception.ReglaNegocioException;
+import pe.edu.upeu.megafarma.exception.SolicitudInvalidaException;
 
 import java.time.LocalDate;
 import java.util.Set;
@@ -81,6 +81,6 @@ class UtilidadesTest {
         // comprueba que el codigo lanza la excepcion esperada
         assertThatThrownBy(() ->
                 RangoFechas.de(LocalDate.of(2026, 11, 10), LocalDate.of(2026, 11, 1)))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(SolicitudInvalidaException.class);
     }
 }

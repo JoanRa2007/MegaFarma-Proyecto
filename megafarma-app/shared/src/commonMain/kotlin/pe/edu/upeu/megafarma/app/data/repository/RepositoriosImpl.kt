@@ -17,6 +17,7 @@ import pe.edu.upeu.megafarma.app.domain.model.LineaVenta
 import pe.edu.upeu.megafarma.app.domain.model.Lote
 import pe.edu.upeu.megafarma.app.domain.model.MedioPago
 import pe.edu.upeu.megafarma.app.domain.model.NuevaEntrada
+import pe.edu.upeu.megafarma.app.domain.model.PaginaVentas
 import pe.edu.upeu.megafarma.app.domain.model.Producto
 import pe.edu.upeu.megafarma.app.domain.model.ProductoVendido
 import pe.edu.upeu.megafarma.app.domain.model.ReporteInventario
@@ -108,8 +109,12 @@ class VentaRepositoryImpl(private val api: MegafarmaApi) : VentaRepository {
             VentaRequestDto(medioPago.name, lineas.map { LineaVentaDto(it.productoId, it.cantidad) }, clave)
         ).mapear { it.aDominio() }
 
-    override suspend fun listar(desde: String?, hasta: String?): Resultado<List<Venta>> =
-        api.ventas(desde, hasta).mapear { pagina -> pagina.contenido.map { it.aDominio() } }
+    override suspend fun listar(desde: String?, hasta: String?, pagina: Int, tamanio: Int): Resultado<PaginaVentas> =
+        api.ventas(desde, hasta, pagina, tamanio).mapear { p ->
+            PaginaVentas(p.contenido.map { it.aDominio() }, p.pagina, p.totalPaginas, p.totalElementos)
+        }
+
+    override suspend fun buscar(id: Long): Resultado<Venta> = api.venta(id).mapear { it.aDominio() }
 
     override suspend fun anular(id: Long, motivo: String): Resultado<Venta> =
         api.anularVenta(id, motivo).mapear { it.aDominio() }
