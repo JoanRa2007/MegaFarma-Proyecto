@@ -7,7 +7,9 @@ package pe.edu.upeu.megafarma.repository;
  * findByUsername se traducen solos a SQL a partir de su nombre.
  */
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,6 +22,15 @@ import java.util.Optional;
 
 // JpaRepository<Entidad, TipoDelId> ya trae save, findById, findAll, delete y count
 public interface VentaRepository extends JpaRepository<Venta, Long> {
+
+    /*
+     * Sprint 2 · R02: bloquea la fila de la venta (SELECT ... FOR UPDATE) antes de
+     * anularla. Si dos administradores anulan la misma venta a la vez, el segundo
+     * espera, ve el estado ANULADA y se rechaza: el stock se repone una sola vez.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT v FROM Venta v WHERE v.id = :id")
+    Optional<Venta> buscarParaActualizar(@Param("id") Long id);
 
     // Optional: caja que puede traer un valor o venir vacia; evita trabajar con null
     Optional<Venta> findByClaveIdempotencia(String claveIdempotencia);

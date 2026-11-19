@@ -51,8 +51,19 @@ public class VentaController {
             description = "Descuenta el stock del lote que vence primero (FEFO) y nunca de lotes vencidos. "
                     + "Con 'claveIdempotencia' un reenvío devuelve la venta ya registrada.")
     public ResponseEntity<VentaResponseDTO> registrar(@Valid @RequestBody VentaRequestDTO request) {
-        // responde HTTP 201 Created con el recurso recien creado
-        return ResponseEntity.status(HttpStatus.CREATED).body(ventaService.registrar(request));
+        try {
+            // responde HTTP 201 Created con el recurso recien creado
+            return ResponseEntity.status(HttpStatus.CREATED).body(ventaService.registrar(request));
+        } catch (org.springframework.dao.DataAccessException ex) {
+            /*
+             * Sprint 2 · R03: si llegan dos envios simultaneos con la misma clave, la
+             * restriccion UNIQUE de la base frena al segundo (su transaccion se revierte
+             * entera). En lugar de devolver error, se responde con la venta original.
+             */
+            return ventaService.buscarPorClave(request.getClaveIdempotencia())
+                    .map(original -> ResponseEntity.status(HttpStatus.CREATED).body(original))
+                    .orElseThrow(() -> ex);
+        }
     }
 
     // @GetMapping: atiende peticiones HTTP GET (leer)
