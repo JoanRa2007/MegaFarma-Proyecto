@@ -24,6 +24,8 @@ object Permiso {
     const val VENTAS_REGISTRAR = "VENTAS_REGISTRAR"
     const val VENTAS_ANULAR = "VENTAS_ANULAR"
     const val REPORTES_VER = "REPORTES_VER"
+    const val USUARIOS_ADMINISTRAR = "USUARIOS_ADMINISTRAR"
+    const val CLIENTES_ESCRIBIR = "CLIENTES_ESCRIBIR"
 }
 
 data class Producto(
@@ -67,7 +69,9 @@ data class Lote(
     val cantidadActual: Int,
     val dadoDeBaja: Boolean,
     val vencido: Boolean,
-    val diasParaVencer: Long
+    val diasParaVencer: Long,
+    /* CRITICO, MEDIO o BAJO; null si no requiere alerta. */
+    val nivelAlerta: String? = null
 )
 
 data class StockProducto(
@@ -93,7 +97,10 @@ data class ResumenAlertas(
     val productosBajoMinimo: Int,
     val lotesPorVencer: Int,
     val lotesVencidos: Int,
-    val diasConsiderados: Int
+    val diasConsiderados: Int,
+    val lotesCriticos: Int = 0,
+    val lotesMedios: Int = 0,
+    val lotesBajos: Int = 0
 )
 
 enum class MedioPago(val etiqueta: String) {
@@ -125,7 +132,14 @@ data class Venta(
     val vendedor: String,
     val total: Double,
     val motivoAnulacion: String?,
-    val detalles: List<DetalleVenta>
+    val detalles: List<DetalleVenta>,
+    val subtotal: Double? = null,
+    val igv: Double? = null,
+    val montoRecibido: Double? = null,
+    val vuelto: Double? = null,
+    val pagos: List<PagoVenta> = emptyList(),
+    val tipoComprobante: String? = null,
+    val numeroComprobante: String? = null
 ) {
     val anulada: Boolean get() = estado == "ANULADA"
 }
@@ -155,3 +169,114 @@ data class ReporteVentas(
 data class ProductoVendido(val codigo: String, val nombre: String, val unidades: Long, val importe: Double)
 
 data class ReporteInventario(val productosConStock: Int, val unidadesTotales: Int, val valorTotal: Double)
+
+// ================= Punto de venta =================
+
+/* Forma de pago registrada en una venta. */
+data class PagoVenta(val medio: String, val monto: Double, val referencia: String?)
+
+/* Forma de pago que se envia al registrar la venta. */
+data class NuevoPago(val medio: MedioPago, val monto: Double, val referencia: String?) {
+    val requiereOperacion: Boolean get() = medio == MedioPago.YAPE || medio == MedioPago.PLIN || medio == MedioPago.TRANSFERENCIA
+}
+
+enum class TipoComprobante(val etiqueta: String) {
+    BOLETA("Boleta"),
+    FACTURA("Factura")
+}
+
+data class Cliente(
+    val id: Long,
+    val tipoDocumento: String,
+    val numeroDocumento: String,
+    val nombre: String,
+    val telefono: String?
+)
+
+data class DatosCliente(val tipoDocumento: String, val numeroDocumento: String, val nombre: String, val telefono: String?)
+
+/* Todo lo que se necesita para registrar una venta. */
+data class NuevaVenta(
+    val lineas: List<LineaVenta>,
+    val pagos: List<NuevoPago>,
+    val tipoComprobante: TipoComprobante,
+    val cliente: Cliente?
+)
+
+data class ItemComprobante(
+    val codigo: String,
+    val descripcion: String,
+    val cantidad: Int,
+    val precioUnitario: Double,
+    val valorVenta: Double,
+    val igv: Double,
+    val importe: Double
+)
+
+/* Boleta o factura electronica (modo demostracion). */
+data class Comprobante(
+    val tipo: String,
+    val numero: String,
+    val fechaEmision: String,
+    val estado: String,
+    val emisorRuc: String,
+    val emisorRazonSocial: String,
+    val emisorDireccion: String,
+    val clienteTipoDoc: String?,
+    val clienteNumDoc: String?,
+    val clienteNombre: String?,
+    val items: List<ItemComprobante>,
+    val opGravada: Double,
+    val igv: Double,
+    val total: Double,
+    val totalEnLetras: String,
+    val pagos: List<PagoVenta>,
+    val montoRecibido: Double?,
+    val vuelto: Double?,
+    val hash: String,
+    val textoQr: String,
+    val ventaNumero: String
+)
+
+enum class Periodo(val etiqueta: String) {
+    HOY("Hoy"),
+    SEMANA("Semana"),
+    MES("Mes"),
+    ANIO("Año"),
+    DIA("Día")
+}
+
+/* Dashboard y reportes por dia, mes y año. */
+data class ResumenVentas(
+    val periodo: String,
+    val titulo: String,
+    val desde: String,
+    val hasta: String,
+    val agrupacion: String,
+    val totalVendido: Double,
+    val cantidadVentas: Int,
+    val ticketPromedio: Double,
+    val unidadesVendidas: Long,
+    val ventasAnuladas: Int,
+    val totalAnulado: Double,
+    val totalPeriodoAnterior: Double,
+    val variacionPorcentaje: Double?,
+    val serie: List<GrupoReporte>,
+    val topProductos: List<ProductoVendido>,
+    val porCategoria: List<GrupoReporte>,
+    val porMedioPago: List<GrupoReporte>
+)
+
+data class Usuario(
+    val id: Long,
+    val username: String,
+    val nombreCompleto: String,
+    val rol: String,
+    val activo: Boolean,
+    val bloqueado: Boolean
+)
+
+data class Rol(val nombre: String, val descripcion: String?, val permisos: List<String>)
+
+/* Datos para crear o editar un usuario (password vacio = no cambiar). */
+data class DatosUsuario(val username: String, val password: String?, val nombreCompleto: String, val rol: String)

@@ -51,6 +51,12 @@ val moduloDatos = module {
     single<InventarioRepository> { InventarioRepositoryImpl(get()) }
     single<VentaRepository> { VentaRepositoryImpl(get()) }
     single<ReporteRepository> { ReporteRepositoryImpl(get()) }
+    single<pe.edu.upeu.megafarma.app.domain.repository.ClienteRepository> {
+        pe.edu.upeu.megafarma.app.data.repository.ClienteRepositoryImpl(get())
+    }
+    single<pe.edu.upeu.megafarma.app.domain.repository.UsuarioRepository> {
+        pe.edu.upeu.megafarma.app.data.repository.UsuarioRepositoryImpl(get())
+    }
 }
 
 /* Capa de dominio: casos de uso. */
@@ -66,8 +72,10 @@ val moduloPresentacion = module {
     viewModel { InicioViewModel(get()) }
     viewModel { ProductosViewModel(get()) }
     viewModel { ProductoDetalleViewModel(get(), get(), get()) }
-    viewModel { NuevaVentaViewModel(get(), get()) }
+    viewModel { NuevaVentaViewModel(get(), get(), get(), get()) }
     viewModel { VentasViewModel(get()) }
+    viewModel { pe.edu.upeu.megafarma.app.presentation.dashboard.DashboardViewModel(get()) }
+    viewModel { pe.edu.upeu.megafarma.app.presentation.usuarios.UsuariosViewModel(get()) }
     viewModel { AlertasViewModel(get()) }
     viewModel { ReportesViewModel(get()) }
 }

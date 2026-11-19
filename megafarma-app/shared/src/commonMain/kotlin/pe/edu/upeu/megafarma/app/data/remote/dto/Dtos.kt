@@ -75,7 +75,8 @@ data class LoteDto(
     val cantidadActual: Int = 0,
     val dadoDeBaja: Boolean = false,
     val vencido: Boolean = false,
-    val diasParaVencer: Long = 0
+    val diasParaVencer: Long = 0,
+    val nivelAlerta: String? = null
 )
 
 @Serializable
@@ -108,7 +109,10 @@ data class ResumenAlertasDto(
     val productosBajoMinimo: Int = 0,
     val lotesPorVencer: Int = 0,
     val lotesVencidos: Int = 0,
-    val diasConsiderados: Int = 0
+    val diasConsiderados: Int = 0,
+    val lotesCriticos: Int = 0,
+    val lotesMedios: Int = 0,
+    val lotesBajos: Int = 0
 )
 
 @Serializable
@@ -116,11 +120,16 @@ data class LineaVentaDto(val productoId: Long, val cantidad: Int)
 
 @Serializable
 data class VentaRequestDto(
-    val medioPago: String,
     val detalles: List<LineaVentaDto>,
     val claveIdempotencia: String,
-    val clienteId: Long? = null
+    val pagos: List<PagoDto>,
+    val tipoComprobante: String,
+    val clienteId: Long? = null,
+    val medioPago: String? = null
 )
+
+@Serializable
+data class PagoDto(val medio: String, val monto: Double, val referencia: String? = null)
 
 @Serializable
 data class DetalleVentaDto(
@@ -143,7 +152,14 @@ data class VentaDto(
     val vendedor: String = "",
     val total: Double,
     val motivoAnulacion: String? = null,
-    val detalles: List<DetalleVentaDto> = emptyList()
+    val detalles: List<DetalleVentaDto> = emptyList(),
+    val subtotal: Double? = null,
+    val igv: Double? = null,
+    val montoRecibido: Double? = null,
+    val vuelto: Double? = null,
+    val pagos: List<PagoDto> = emptyList(),
+    val tipoComprobante: String? = null,
+    val numeroComprobante: String? = null
 )
 
 @Serializable
@@ -171,3 +187,88 @@ data class ReporteInventarioDto(
     val unidadesTotales: Int = 0,
     val valorAPrecioVenta: Double = 0.0
 )
+
+@Serializable
+data class ItemComprobanteDto(
+    val codigo: String,
+    val descripcion: String,
+    val cantidad: Int,
+    val precioUnitario: Double,
+    val valorVenta: Double,
+    val igv: Double,
+    val importe: Double
+)
+
+@Serializable
+data class ComprobanteDto(
+    val tipo: String,
+    val numero: String,
+    val fechaEmision: String,
+    val estado: String,
+    val emisorRuc: String,
+    val emisorRazonSocial: String,
+    val emisorDireccion: String,
+    val clienteTipoDoc: String? = null,
+    val clienteNumDoc: String? = null,
+    val clienteNombre: String? = null,
+    val items: List<ItemComprobanteDto> = emptyList(),
+    val opGravada: Double,
+    val igv: Double,
+    val total: Double,
+    val totalEnLetras: String = "",
+    val pagos: List<PagoDto> = emptyList(),
+    val montoRecibido: Double? = null,
+    val vuelto: Double? = null,
+    val hash: String = "",
+    val textoQr: String = "",
+    val ventaNumero: String = ""
+)
+
+@Serializable
+data class ResumenVentasDto(
+    val periodo: String,
+    val titulo: String,
+    val desde: String,
+    val hasta: String,
+    val agrupacion: String,
+    val totalVendido: Double = 0.0,
+    val cantidadVentas: Int = 0,
+    val ticketPromedio: Double = 0.0,
+    val unidadesVendidas: Long = 0,
+    val ventasAnuladas: Int = 0,
+    val totalAnulado: Double = 0.0,
+    val totalPeriodoAnterior: Double = 0.0,
+    val variacionPorcentaje: Double? = null,
+    val serie: List<GrupoDto> = emptyList(),
+    val topProductos: List<MasVendidoDto> = emptyList(),
+    val porCategoria: List<GrupoDto> = emptyList(),
+    val porMedioPago: List<GrupoDto> = emptyList()
+)
+
+@Serializable
+data class ClienteDto(
+    val id: Long,
+    val tipoDocumento: String,
+    val numeroDocumento: String,
+    val nombre: String,
+    val telefono: String? = null
+)
+
+@Serializable
+data class ClienteRequestDto(val tipoDocumento: String, val numeroDocumento: String, val nombre: String, val telefono: String? = null)
+
+@Serializable
+data class UsuarioDto(
+    val id: Long,
+    val username: String,
+    val nombreCompleto: String,
+    val rol: String,
+    val activo: Boolean = true,
+    val bloqueado: Boolean = false
+)
+
+@Serializable
+data class UsuarioRequestDto(val username: String, val password: String? = null, val nombreCompleto: String, val rol: String)
+
+@Serializable
+data class RolDto(val nombre: String, val descripcion: String? = null, val permisos: List<String> = emptyList())
