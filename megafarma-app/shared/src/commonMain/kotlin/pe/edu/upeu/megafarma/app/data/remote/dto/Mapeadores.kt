@@ -82,3 +82,5 @@ fun ClienteDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Cliente(id, t
 fun UsuarioDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Usuario(id, username, nombreCompleto, rol, activo, bloqueado)
 
 fun RolDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Rol(nombre, descripcion, permisos)
+
+fun AuditoriaDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.RegistroAuditoria(id, fecha, usuario, accion, detalle, ip, exito)

@@ -1,5 +1,6 @@
 package pe.edu.upeu.megafarma.app.presentation.productos
 
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tarjeta
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
@@ -86,7 +87,7 @@ fun ProductosScreen(
 @Composable
 private fun TarjetaProducto(producto: Producto, onClick: () -> Unit) {
     val bajo = producto.stockDisponible <= producto.stockMinimo
-    Card(Modifier.fillMaxWidth().clickable { onClick() }) {
+    Tarjeta(Modifier.fillMaxWidth().clickable { onClick() }) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(producto.nombre, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)

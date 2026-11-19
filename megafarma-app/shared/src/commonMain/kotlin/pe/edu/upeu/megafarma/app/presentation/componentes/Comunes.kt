@@ -1,6 +1,7 @@
 package pe.edu.upeu.megafarma.app.presentation.componentes
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,31 +10,35 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 /* Piezas de interfaz reutilizadas por todas las pantallas. */
 
 @Composable
 fun Cargando(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
+    Box(modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(strokeWidth = 3.dp)
     }
 }
 
 @Composable
 fun MensajeError(mensaje: String, onReintentar: (() -> Unit)? = null) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(mensaje, color = MaterialTheme.colorScheme.onErrorContainer)
-            if (onReintentar != null) {
-                TextButton(onClick = onReintentar) { Text("Reintentar") }
-            }
+        Icon(Iconos.Advertencia, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(mensaje, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.weight(1f))
+        if (onReintentar != null) {
+            TextButton(onClick = onReintentar) { Text("Reintentar", color = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -43,34 +48,44 @@ fun MensajeError(mensaje: String, onReintentar: (() -> Unit)? = null) {
 fun Aviso(texto: String, esError: Boolean, onCerrar: () -> Unit) {
     val fondo = if (esError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
     val color = if (esError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
-    Card(colors = CardDefaults.cardColors(containerColor = fondo), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(texto, color = color, modifier = Modifier.weight(1f))
-            TextButton(onClick = onCerrar) { Text("Cerrar", color = color) }
-        }
+    Row(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(fondo)
+            .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(if (esError) Iconos.Advertencia else Iconos.Ok, null, tint = color, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(texto, color = color, modifier = Modifier.weight(1f))
+        TextButton(onClick = onCerrar) { Text("Cerrar", color = color) }
     }
 }
 
+/* Estado vacio con icono, en vez de un texto suelto. */
 @Composable
 fun Vacio(texto: String) {
-    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-        Text(texto, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.fillMaxWidth().padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Insignia(Iconos.Buscar, MaterialTheme.colorScheme.onSurfaceVariant, 56)
+        Spacer(Modifier.height(12.dp))
+        Text(texto, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
     }
 }
 
 /* Etiqueta pequena de color (por ejemplo "Vencido", "Stock bajo"). */
 @Composable
 fun Etiqueta(texto: String, color: Color) {
-    Box(
+    Row(
         Modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 3.dp)
+            .background(color.copy(alpha = 0.12f), RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(Modifier.size(6.dp).background(color, RoundedCornerShape(50)))
+        Spacer(Modifier.width(6.dp))
         Text(texto, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
-/* Tarjeta con un numero grande: se usa en el inicio y en los reportes. */
+/* Tarjeta con un numero grande y una franja de color: se usa en reportes y dashboard. */
 @Composable
 fun TarjetaDato(
     titulo: String,
@@ -80,14 +95,19 @@ fun TarjetaDato(
     detalle: String? = null,
     onClick: (() -> Unit)? = null
 ) {
-    val base = if (onClick != null) modifier.clickable { onClick() } else modifier
-    Card(modifier = base) {
+    val base = modifier
+        .clip(MaterialTheme.shapes.medium)
+        .background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
+    Row((if (onClick != null) base.clickable { onClick() } else base).height(IntrinsicSize.Min)) {
+        Box(Modifier.width(4.dp).fillMaxHeight().background(color))
         Column(Modifier.padding(16.dp)) {
             Text(titulo, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(4.dp))
-            Text(valor, style = MaterialTheme.typography.headlineMedium, color = color, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            Text(valor, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
             if (detalle != null) {
-                Text(detalle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(2.dp))
+                Text(detalle, style = MaterialTheme.typography.bodySmall, color = color)
             }
         }
     }

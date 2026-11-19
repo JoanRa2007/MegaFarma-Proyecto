@@ -1,5 +1,6 @@
 package pe.edu.upeu.megafarma.app.presentation.reportes
 
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tarjeta
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,7 +43,7 @@ fun ResumenVentasVista(r: ResumenVentas) {
                 detalle = r.totalAnulado.soles())
         }
 
-        Card(Modifier.fillMaxWidth()) {
+        Tarjeta(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Titulo(
                     when (r.agrupacion) {
@@ -87,7 +88,7 @@ private fun redondear(v: Double): String {
 
 @Composable
 private fun TarjetaLista(titulo: String, modifier: Modifier, contenido: @Composable ColumnScope.() -> Unit) {
-    Card(modifier) {
+    Tarjeta(modifier) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Titulo(titulo)
             Spacer(Modifier.height(4.dp))

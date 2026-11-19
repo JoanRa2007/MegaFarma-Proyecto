@@ -13,3 +13,14 @@ logging:
   level:
     root: INFO
     pe.edu.upeu.megafarma: DEBUG
+
+# Swagger disponible solo en desarrollo (documentacion y pruebas de la API).
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+app:
+  swagger:
+    habilitado: true

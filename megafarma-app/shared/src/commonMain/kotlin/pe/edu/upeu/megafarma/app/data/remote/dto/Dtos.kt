@@ -272,3 +272,14 @@ data class UsuarioRequestDto(val username: String, val password: String? = null,
 
 @Serializable
 data class RolDto(val nombre: String, val descripcion: String? = null, val permisos: List<String> = emptyList())
+
+@Serializable
+data class AuditoriaDto(
+    val id: Long,
+    val fecha: String,
+    val usuario: String,
+    val accion: String,
+    val detalle: String? = null,
+    val ip: String? = null,
+    val exito: Boolean = true
+)
