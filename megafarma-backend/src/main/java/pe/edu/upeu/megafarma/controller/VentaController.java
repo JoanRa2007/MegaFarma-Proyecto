@@ -38,10 +38,13 @@ public class VentaController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
     private final VentaService ventaService;
+    private final pe.edu.upeu.megafarma.service.ComprobanteService comprobanteService;
 
-    public VentaController(VentaService ventaService) {
+    public VentaController(VentaService ventaService,
+                           pe.edu.upeu.megafarma.service.ComprobanteService comprobanteService) {
         // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.ventaService = ventaService;
+        this.comprobanteService = comprobanteService;
     }
 
     // @PostMapping: atiende peticiones HTTP POST (crear o ejecutar una accion)
@@ -78,6 +81,22 @@ public class VentaController {
             @RequestParam(defaultValue = "20") int tamanio) {
         // responde HTTP 200 OK; el objeto se convierte a JSON
         return ResponseEntity.ok(ventaService.listar(desde, hasta, pagina, tamanio));
+    }
+
+    @GetMapping("/{id}/comprobante")
+    @Operation(summary = "Boleta o factura electrónica de la venta (modo demostración)",
+            description = "Emisor, cliente, ítems, operación gravada, IGV 18 %, total en letras, pagos, hash y texto del QR.")
+    public ResponseEntity<pe.edu.upeu.megafarma.dto.venta.ComprobanteResponseDTO> comprobante(@PathVariable Long id) {
+        return ResponseEntity.ok(comprobanteService.obtener(id));
+    }
+
+    // Sin "produces": la app envia Accept: application/json y aun asi recibe el XML.
+    @GetMapping("/{id}/comprobante/xml")
+    @Operation(summary = "XML UBL 2.1 del comprobante electrónico")
+    public ResponseEntity<String> comprobanteXml(@PathVariable Long id) {
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_XML)
+                .body(comprobanteService.xml(id));
     }
 
     @GetMapping("/{id}")

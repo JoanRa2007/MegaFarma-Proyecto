@@ -34,13 +34,25 @@ public class ReporteController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
     private final ReporteService reporteService;
+    private final pe.edu.upeu.megafarma.service.ResumenVentasService resumenVentasService;
 
-    public ReporteController(ReporteService reporteService) {
+    public ReporteController(ReporteService reporteService,
+                             pe.edu.upeu.megafarma.service.ResumenVentasService resumenVentasService) {
         // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.reporteService = reporteService;
+        this.resumenVentasService = resumenVentasService;
     }
 
     // @GetMapping: atiende peticiones HTTP GET (leer)
+    @GetMapping("/resumen")
+    @Operation(summary = "Reporte de ventas por DIA, MES o ANIO",
+            description = "fecha: cualquier día del periodo (AAAA-MM-DD). Por defecto, hoy.")
+    public ResponseEntity<pe.edu.upeu.megafarma.dto.reporte.ResumenVentasDTO> resumen(
+            @RequestParam(defaultValue = "DIA") pe.edu.upeu.megafarma.enums.Periodo tipo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        return ResponseEntity.ok(resumenVentasService.reporte(tipo, fecha));
+    }
+
     @GetMapping("/ventas")
     // @Operation: titulo y descripcion de la operacion en Swagger
     @Operation(summary = "Reporte de ventas por rango de fechas (HU-17)")

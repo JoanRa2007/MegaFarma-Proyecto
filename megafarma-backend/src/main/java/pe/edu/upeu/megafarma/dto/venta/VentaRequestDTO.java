@@ -29,9 +29,18 @@ public class VentaRequestDTO {
     /* Opcional: una venta de mostrador puede no tener cliente identificado. */
     private Long clienteId;
 
-    // @NotNull: obligatorio: no puede ser null
-    @NotNull(message = "El medio de pago es obligatorio")
+    /*
+     * Medio de pago cuando se paga con uno solo. Si se envia la lista "pagos"
+     * (pago mixto o efectivo con vuelto), este campo es opcional.
+     */
     private MedioPago medioPago;
+
+    /* Formas de pago. La suma debe cubrir el total; el exceso en efectivo es el vuelto. */
+    @Valid
+    private List<PagoRequestDTO> pagos;
+
+    /* BOLETA (por defecto) o FACTURA (exige un cliente con RUC). */
+    private pe.edu.upeu.megafarma.enums.TipoComprobante tipoComprobante;
 
     // @NotEmpty: la lista no puede ser null ni estar vacia
     @NotEmpty(message = "La venta debe tener al menos un producto")

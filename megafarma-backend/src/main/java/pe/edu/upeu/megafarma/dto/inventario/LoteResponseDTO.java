@@ -38,4 +38,6 @@ public class LoteResponseDTO {
     private boolean vencido;
     /* Negativo si ya vencio. */
     private long diasParaVencer;
+    /* CRITICO, MEDIO o BAJO segun los dias para vencer; null si no requiere alerta. */
+    private String nivelAlerta;
 }

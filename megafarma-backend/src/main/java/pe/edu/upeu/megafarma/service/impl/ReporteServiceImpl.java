@@ -93,7 +93,12 @@ public class ReporteServiceImpl implements ReporteService {
             cantidad++;
             total = total.add(venta.getTotal());
             acumular(porDia, venta.getFecha().toLocalDate().toString(), venta.getTotal());
-            acumular(porMedio, venta.getMedioPago().name(), venta.getTotal());
+            // Un pago mixto reparte la venta entre sus medios de pago.
+            if (venta.getPagos().isEmpty()) {
+                acumular(porMedio, venta.getMedioPago().name(), venta.getTotal());
+            } else {
+                venta.getPagos().forEach(pago -> acumular(porMedio, pago.getMedio().name(), pago.getMonto()));
+            }
         }
 
         BigDecimal ticketPromedio = cantidad == 0

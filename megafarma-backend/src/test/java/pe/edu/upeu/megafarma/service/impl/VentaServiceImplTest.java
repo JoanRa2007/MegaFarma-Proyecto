@@ -79,6 +79,8 @@ class VentaServiceImplTest {
     private MovimientoInventarioRepository movimientoRepository;
     @Mock
     private UsuarioActual usuarioActual;
+    @Mock
+    private pe.edu.upeu.megafarma.service.ComprobanteService comprobanteService;
 
     private VentaServiceImpl service;
 
@@ -90,7 +92,7 @@ class VentaServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new VentaServiceImpl(ventaRepository, clienteRepository, productoRepository,
-                loteRepository, movimientoRepository, usuarioActual);
+                loteRepository, movimientoRepository, usuarioActual, comprobanteService);
 
         Usuario vendedor = new Usuario();
         vendedor.setId(7L);

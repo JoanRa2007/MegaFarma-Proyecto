@@ -78,15 +78,21 @@ fun InicioScreen(sesion: Sesion, onIrA: (Destino) -> Unit, viewModel: InicioView
                         onClick = { onIrA(Destino.ALERTAS) }
                     )
                     TarjetaDato(
-                        "Lotes por vencer", r.lotesPorVencer.toString(),
-                        if (r.lotesPorVencer > 0) ColoresEstado.alerta else ColoresEstado.ok,
-                        Modifier.widthIn(min = 200.dp), "En los próximos ${r.diasConsiderados} días",
+                        "Vencimiento crítico", r.lotesCriticos.toString(),
+                        if (r.lotesCriticos > 0) ColoresEstado.peligro else ColoresEstado.ok,
+                        Modifier.widthIn(min = 200.dp), "Vencidos o en 30 días (${r.lotesVencidos} vencidos)",
                         onClick = { onIrA(Destino.ALERTAS) }
                     )
                     TarjetaDato(
-                        "Lotes vencidos", r.lotesVencidos.toString(),
-                        if (r.lotesVencidos > 0) ColoresEstado.peligro else ColoresEstado.ok,
-                        Modifier.widthIn(min = 200.dp), "Con stock, pendientes de baja",
+                        "Vencimiento medio", r.lotesMedios.toString(),
+                        if (r.lotesMedios > 0) ColoresEstado.alerta else ColoresEstado.ok,
+                        Modifier.widthIn(min = 200.dp), "Vencen en 31 a 60 días",
+                        onClick = { onIrA(Destino.ALERTAS) }
+                    )
+                    TarjetaDato(
+                        "Vencimiento bajo", r.lotesBajos.toString(),
+                        if (r.lotesBajos > 0) ColoresEstado.aviso else ColoresEstado.ok,
+                        Modifier.widthIn(min = 200.dp), "Vencen en 61 a 90 días",
                         onClick = { onIrA(Destino.ALERTAS) }
                     )
                 }

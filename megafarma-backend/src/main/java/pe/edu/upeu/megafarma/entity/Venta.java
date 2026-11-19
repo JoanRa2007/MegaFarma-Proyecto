@@ -79,6 +79,27 @@ public class Venta {
     // BigDecimal: decimales exactos para dinero (double pierde centimos por redondeo)
     private BigDecimal total;
 
+    /* Operacion gravada (precio sin IGV) e IGV 18 %: los precios de venta incluyen IGV. */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal subtotal;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal igv;
+
+    /* Efectivo entregado por el cliente y vuelto devuelto. */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal montoRecibido;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal vuelto;
+
+    /* Comprobante emitido: BOLETA o FACTURA y su numero (B001-00000001). */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private pe.edu.upeu.megafarma.enums.TipoComprobante tipoComprobante;
+
+    private String numeroComprobante;
+
     private String motivoAnulacion;
 
     private LocalDateTime anuladaEn;
@@ -91,6 +112,16 @@ public class Venta {
     // @OrderBy: orden en que se cargan los elementos de la lista
     @OrderBy("id ASC")
     private List<DetalleVenta> detalles = new ArrayList<>();
+
+    /* Formas de pago de la venta (una o varias: pago mixto). */
+    @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id ASC")
+    private List<Pago> pagos = new ArrayList<>();
+
+    public void agregarPago(Pago pago) {
+        pago.setVenta(this);
+        pagos.add(pago);
+    }
 
     public void agregarDetalle(DetalleVenta detalle) {
         detalle.setVenta(this);

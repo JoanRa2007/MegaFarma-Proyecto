@@ -109,6 +109,8 @@ public class SecurityConfig {
                         .hasAuthority(VENTAS_REGISTRAR.name())
 
                         // Reportes: solo ADMIN
+                        .requestMatchers("/api/v1/dashboard/**")
+                        .hasAuthority(REPORTES_VER.name())
                         .requestMatchers("/api/v1/reportes/**")
                         .hasAuthority(REPORTES_VER.name())
 

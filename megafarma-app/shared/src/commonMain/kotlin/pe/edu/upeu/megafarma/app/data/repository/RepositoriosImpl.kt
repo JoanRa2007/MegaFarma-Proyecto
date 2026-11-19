@@ -104,10 +104,22 @@ class InventarioRepositoryImpl(private val api: MegafarmaApi) : InventarioReposi
 
 class VentaRepositoryImpl(private val api: MegafarmaApi) : VentaRepository {
 
-    override suspend fun registrar(lineas: List<LineaVenta>, medioPago: MedioPago, clave: String): Resultado<Venta> =
+    override suspend fun registrar(venta: pe.edu.upeu.megafarma.app.domain.model.NuevaVenta, clave: String): Resultado<Venta> =
         api.registrarVenta(
-            VentaRequestDto(medioPago.name, lineas.map { LineaVentaDto(it.productoId, it.cantidad) }, clave)
+            VentaRequestDto(
+                detalles = venta.lineas.map { LineaVentaDto(it.productoId, it.cantidad) },
+                claveIdempotencia = clave,
+                pagos = venta.pagos.map {
+                    pe.edu.upeu.megafarma.app.data.remote.dto.PagoDto(it.medio.name, it.monto, it.referencia?.trim()?.ifEmpty { null })
+                },
+                tipoComprobante = venta.tipoComprobante.name,
+                clienteId = venta.cliente?.id
+            )
         ).mapear { it.aDominio() }
+
+    override suspend fun comprobante(ventaId: Long) = api.comprobante(ventaId).mapear { it.aDominio() }
+
+    override suspend fun comprobanteXml(ventaId: Long) = api.comprobanteXml(ventaId)
 
     override suspend fun listar(desde: String?, hasta: String?, pagina: Int, tamanio: Int): Resultado<PaginaVentas> =
         api.ventas(desde, hasta, pagina, tamanio).mapear { p ->
@@ -128,4 +140,39 @@ class ReporteRepositoryImpl(private val api: MegafarmaApi) : ReporteRepository {
         api.masVendidos().mapear { lista -> lista.map { it.aDominio() } }
 
     override suspend fun inventario(): Resultado<ReporteInventario> = api.reporteInventario().mapear { it.aDominio() }
+
+    override suspend fun dashboard(periodo: pe.edu.upeu.megafarma.app.domain.model.Periodo) =
+        api.dashboard(periodo.name).mapear { it.aDominio() }
+
+    override suspend fun resumen(tipo: pe.edu.upeu.megafarma.app.domain.model.Periodo, fecha: String?) =
+        api.reporteResumen(tipo.name, fecha).mapear { it.aDominio() }
+}
+
+class ClienteRepositoryImpl(private val api: MegafarmaApi) : pe.edu.upeu.megafarma.app.domain.repository.ClienteRepository {
+
+    override suspend fun buscar(texto: String) = api.clientes(texto).mapear { p -> p.contenido.map { it.aDominio() } }
+
+    override suspend fun crear(datos: pe.edu.upeu.megafarma.app.domain.model.DatosCliente) =
+        api.crearCliente(
+            pe.edu.upeu.megafarma.app.data.remote.dto.ClienteRequestDto(
+                datos.tipoDocumento, datos.numeroDocumento.trim(), datos.nombre.trim(), datos.telefono?.trim()?.ifEmpty { null }
+            )
+        ).mapear { it.aDominio() }
+}
+
+class UsuarioRepositoryImpl(private val api: MegafarmaApi) : pe.edu.upeu.megafarma.app.domain.repository.UsuarioRepository {
+
+    override suspend fun listar() = api.usuarios().mapear { lista -> lista.map { it.aDominio() } }
+
+    override suspend fun roles() = api.roles().mapear { lista -> lista.map { it.aDominio() } }
+
+    override suspend fun guardar(id: Long?, datos: pe.edu.upeu.megafarma.app.domain.model.DatosUsuario): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario> {
+        val request = pe.edu.upeu.megafarma.app.data.remote.dto.UsuarioRequestDto(
+            datos.username.trim(), datos.password?.ifBlank { null }, datos.nombreCompleto.trim(), datos.rol
+        )
+        val r = if (id == null) api.crearUsuario(request) else api.actualizarUsuario(id, request)
+        return r.mapear { it.aDominio() }
+    }
+
+    override suspend fun cambiarEstado(id: Long, activo: Boolean) = api.cambiarEstadoUsuario(id, activo).mapear { it.aDominio() }
 }

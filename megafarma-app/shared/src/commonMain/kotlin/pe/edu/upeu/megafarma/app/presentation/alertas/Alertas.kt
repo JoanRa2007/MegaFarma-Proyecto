@@ -6,6 +6,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -30,12 +31,13 @@ data class AlertasUiState(
     val cargando: Boolean = true,
     val stockMinimo: List<StockProducto> = emptyList(),
     val vencimientos: List<Lote> = emptyList(),
-    val dias: Int = 60,
-    val verVencimientos: Boolean = false,
+    val verVencimientos: Boolean = true,
+    /* null = todos los niveles */
+    val nivel: String? = null,
     val error: String? = null
 )
 
-/* Alertas de stock minimo (HU-08) y de vencimientos (HU-13). */
+/* Alertas de stock minimo (HU-08) y de vencimiento clasificadas por nivel (HU-13, HU-14). */
 class AlertasViewModel(private val inventario: InventarioRepository) : ViewModel() {
 
     private val _estado = MutableStateFlow(AlertasUiState())
@@ -45,7 +47,7 @@ class AlertasViewModel(private val inventario: InventarioRepository) : ViewModel
         _estado.update { it.copy(cargando = true, error = null) }
         viewModelScope.launch {
             val minimo = inventario.stockMinimo()
-            val vencen = inventario.vencimientos(_estado.value.dias)
+            val vencen = inventario.vencimientos(90)
             _estado.update {
                 it.copy(
                     cargando = false,
@@ -59,10 +61,22 @@ class AlertasViewModel(private val inventario: InventarioRepository) : ViewModel
 
     fun mostrar(vencimientos: Boolean) = _estado.update { it.copy(verVencimientos = vencimientos) }
 
-    fun cambiarDias(dias: Int) {
-        _estado.update { it.copy(dias = dias) }
-        cargar()
-    }
+    fun filtrarNivel(nivel: String?) = _estado.update { it.copy(nivel = nivel) }
+}
+
+/* Color y texto de cada nivel de urgencia. */
+fun colorNivel(nivel: String?): Color = when (nivel) {
+    "CRITICO" -> ColoresEstado.peligro
+    "MEDIO" -> ColoresEstado.alerta
+    "BAJO" -> ColoresEstado.aviso
+    else -> ColoresEstado.neutro
+}
+
+fun textoNivel(nivel: String?): String = when (nivel) {
+    "CRITICO" -> "Crítico"
+    "MEDIO" -> "Medio"
+    "BAJO" -> "Bajo"
+    else -> "Sin alerta"
 }
 
 @Composable
@@ -70,26 +84,37 @@ fun AlertasScreen(viewModel: AlertasViewModel = koinViewModel()) {
     val estado by viewModel.estado.collectAsState()
     LaunchedEffect(Unit) { viewModel.cargar() }
 
+    val conteo = estado.vencimientos.groupingBy { it.nivelAlerta }.eachCount()
+
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = !estado.verVencimientos,
-                onClick = { viewModel.mostrar(false) },
-                label = { Text("Stock mínimo (${estado.stockMinimo.size})") }
-            )
             FilterChip(
                 selected = estado.verVencimientos,
                 onClick = { viewModel.mostrar(true) },
                 label = { Text("Vencimientos (${estado.vencimientos.size})") }
             )
+            FilterChip(
+                selected = !estado.verVencimientos,
+                onClick = { viewModel.mostrar(false) },
+                label = { Text("Stock mínimo (${estado.stockMinimo.size})") }
+            )
         }
         if (estado.verVencimientos) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Vencen en:")
-                listOf(30, 60, 90).forEach { d ->
-                    FilterChip(selected = estado.dias == d, onClick = { viewModel.cambiarDias(d) }, label = { Text("$d días") })
+                FilterChip(selected = estado.nivel == null, onClick = { viewModel.filtrarNivel(null) }, label = { Text("Todos") })
+                listOf("CRITICO", "MEDIO", "BAJO").forEach { n ->
+                    FilterChip(
+                        selected = estado.nivel == n,
+                        onClick = { viewModel.filtrarNivel(n) },
+                        label = { Text("${textoNivel(n)} (${conteo[n] ?: 0})", color = colorNivel(n)) }
+                    )
                 }
             }
+            Text(
+                "Crítico: vencido o vence en 30 días · Medio: en 31 a 60 días · Bajo: en 61 a 90 días",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         when {
@@ -115,9 +140,10 @@ fun AlertasScreen(viewModel: AlertasViewModel = koinViewModel()) {
                 }
             }
             else -> {
-                if (estado.vencimientos.isEmpty()) Vacio("No hay lotes por vencer en ${estado.dias} días")
+                val lista = estado.vencimientos.filter { estado.nivel == null || it.nivelAlerta == estado.nivel }
+                if (lista.isEmpty()) Vacio("No hay lotes en ese nivel")
                 else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(estado.vencimientos, key = { it.id }) { l ->
+                    items(lista, key = { it.id }) { l ->
                         Card(Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
@@ -128,8 +154,13 @@ fun AlertasScreen(viewModel: AlertasViewModel = koinViewModel()) {
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                if (l.vencido) Etiqueta("Vencido", ColoresEstado.peligro)
-                                else Etiqueta("En ${l.diasParaVencer} días", ColoresEstado.alerta)
+                                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Etiqueta(textoNivel(l.nivelAlerta), colorNivel(l.nivelAlerta))
+                                    Text(
+                                        if (l.vencido) "Vencido" else "En ${l.diasParaVencer} días",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                             }
                         }
                     }

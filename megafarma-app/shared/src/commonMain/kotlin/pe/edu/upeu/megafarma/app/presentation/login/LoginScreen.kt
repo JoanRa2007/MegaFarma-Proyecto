@@ -35,7 +35,7 @@ fun LoginScreen(viewModel: LoginViewModel = koinViewModel()) {
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
-                Text("Ventas e inventario de la botica", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Punto de venta e inventario de la botica", color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 OutlinedTextField(
                     value = estado.usuario,
