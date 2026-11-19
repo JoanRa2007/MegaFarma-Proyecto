@@ -6,7 +6,7 @@ API REST del sistema de ventas e inventario de la botica **Megafarma**. Es el se
 - **Spring Security + JWT** con roles y permisos
 - **Spring Data JPA** sobre **PostgreSQL**, esquema versionado con **Flyway**
 - **Swagger / OpenAPI** para documentar y probar
-- **71 pruebas automáticas** (JUnit 5, Mockito, MockMvc)
+- **77 pruebas automáticas** (JUnit 5, Mockito, MockMvc)
 
 ## Arquitectura
 
@@ -90,6 +90,7 @@ Son solo para desarrollo. En producción se desactivan con `app.datos-demo=false
 | `JwtServiceTest` (4) | Unitaria | Token válido, firma ajena, token alterado, token expirado |
 | `PermisosPorRolTest` (4) | Unitaria | Matriz de permisos de cada rol |
 | `UtilidadesTest` (6) | Unitaria | Paginación segura y rangos de fechas |
+| `Sprint2VentasTest` (6) | Integración (Sprint 2) | Doble anulación simultánea, misma clave simultánea, ventas simultáneas, cantidad decimal, fechas inválidas y paginación completa |
 | `ApiIntegrationTest` (21) | Integración (MockMvc + H2) | La API completa de punta a punta: login, 401/403, CRUD, validaciones, flujo de inventario y venta, alertas y reportes |
 | `MegafarmaBackendApplicationTests` (1) | Integración | El contexto arranca y Hibernate valida el esquema de Flyway |
 
@@ -184,7 +185,7 @@ Todos los errores, incluidos los 401 y 403, tienen la misma forma:
 8. `GET /alertas/resumen` y `GET /alertas/vencimientos`: aparece el lote vencido `L-LORA-01`.
 9. Login como `almacen` / `Almacen123`: `POST /inventario/entradas` y `POST /inventario/lotes/{id}/baja` del lote vencido.
 10. Login como `admin` / `Admin123`: `POST /ventas/1/anular`, `GET /inventario/kardex/1` y los reportes.
-11. En la terminal, `./mvnw test`: 71 pruebas en verde.
+11. En la terminal, `./mvnw test`: 77 pruebas en verde.
 
 ## Fuera de este alcance
 
