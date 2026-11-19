@@ -25,7 +25,10 @@ data class ErrorDto(val message: String? = null, val validationErrors: Map<Strin
 @Serializable
 data class PaginaDto<T>(
     val contenido: List<T> = emptyList(),
-    val totalElementos: Long = 0
+    val pagina: Int = 0,
+    val totalPaginas: Int = 0,
+    val totalElementos: Long = 0,
+    val ultima: Boolean = true
 )
 
 @Serializable

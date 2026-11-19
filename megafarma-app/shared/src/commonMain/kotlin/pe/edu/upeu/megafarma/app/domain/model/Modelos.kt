@@ -130,6 +130,14 @@ data class Venta(
     val anulada: Boolean get() = estado == "ANULADA"
 }
 
+/* Una pagina de resultados de la busqueda de ventas (HU-11). */
+data class PaginaVentas(
+    val ventas: List<Venta>,
+    val pagina: Int,
+    val totalPaginas: Int,
+    val totalElementos: Long
+)
+
 data class GrupoReporte(val etiqueta: String, val cantidadVentas: Int, val total: Double)
 
 data class ReporteVentas(
