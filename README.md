@@ -4,7 +4,7 @@
 
 | Carpeta | Parte | Contenido |
 |---|---|---|
-| [`megafarma-backend/`](megafarma-backend) | Backend | API REST en Spring Boot 4 (Java 21) con JWT, PostgreSQL, Flyway, Swagger y 86 pruebas automáticas |
+| [`megafarma-backend/`](megafarma-backend) | Backend | API REST en Spring Boot 4 (Java 21) con JWT, PostgreSQL, Flyway, Swagger, seguridad OWASP (ver [SEGURIDAD.md](SEGURIDAD.md)) y 97 pruebas automáticas |
 | [`megafarma-app/`](megafarma-app) | Frontend (app + web) | Kotlin Multiplatform + Compose Multiplatform: un solo código que genera la app Android, la página web (Kotlin/Wasm) y la app iOS |
 
 ```
