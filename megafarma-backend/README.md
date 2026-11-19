@@ -6,7 +6,8 @@ API REST del **sistema de punto de venta (POS)** de la botica **Megafarma**, con
 - **Spring Security + JWT** con roles y permisos
 - **Spring Data JPA** sobre **PostgreSQL**, esquema versionado con **Flyway**
 - **Swagger / OpenAPI** para documentar y probar
-- **86 pruebas automáticas** (JUnit 5, Mockito, MockMvc)
+- **97 pruebas automáticas** (JUnit 5, Mockito, MockMvc), 11 de seguridad
+- **Seguridad OWASP**: anti inyección SQL, límite de intentos (429), revocación de token, cabeceras, bitácora de auditoría. Ver [SEGURIDAD.md](../SEGURIDAD.md)
 
 ## Arquitectura
 
@@ -59,7 +60,7 @@ En Windows (PowerShell o CMD) use `.\mvnw.cmd` en lugar de `./mvnw`.
 
 | Qué | Dirección |
 |---|---|
-| Swagger (documentación y pruebas) | http://localhost:8080/swagger-ui.html |
+| Swagger (solo perfiles dev y local) | http://localhost:8080/swagger-ui.html |
 | Estado del servicio | http://localhost:8080/api/health |
 | Desde el emulador de Android | `http://10.0.2.2:8080` |
 | Desde un celular en la misma red | `http://<IP de la laptop>:8080` |
@@ -197,7 +198,7 @@ Todos los errores, incluidos los 401 y 403, tienen la misma forma:
 8. `GET /alertas/resumen` y `GET /alertas/vencimientos`: aparece el lote vencido `L-LORA-01`.
 9. Login como `almacen` / `Almacen123`: `POST /inventario/entradas` y `POST /inventario/lotes/{id}/baja` del lote vencido.
 10. Login como `admin` / `Admin123`: `POST /ventas/1/anular`, `GET /inventario/kardex/1` y los reportes.
-11. En la terminal, `./mvnw test`: 77 pruebas en verde.
+11. En la terminal, `./mvnw test`: 97 pruebas en verde.
 
 ## Fuera de este alcance
 
