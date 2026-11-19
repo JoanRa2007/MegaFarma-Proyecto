@@ -42,6 +42,13 @@ public class GlobalExceptionHandler {
         return responder(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
     }
 
+    /* Solicitud con datos invalidos (por ejemplo rango de fechas invertido) -> HTTP 400 */
+    @ExceptionHandler(SolicitudInvalidaException.class)
+    public ResponseEntity<ErrorResponseDTO> handleSolicitudInvalida(
+            SolicitudInvalidaException ex, HttpServletRequest request) {
+        return responder(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
+    }
+
     /* Regla de negocio -> HTTP 409 */
     @ExceptionHandler(ReglaNegocioException.class)
     public ResponseEntity<ErrorResponseDTO> handleBusinessRule(
