@@ -44,6 +44,14 @@ app:
   seguridad:
     max-intentos-fallidos: 5
   inventario:
-    dias-alerta-vencimiento: 60
+    # Ventana de alertas de vencimiento y niveles: CRITICO <= 30, MEDIO <= 60, BAJO <= 90 dias.
+    dias-alerta-vencimiento: 90
+    dias-critico: 30
+    dias-medio: 60
+  # Datos del emisor en los comprobantes electronicos (modo demostracion).
+  empresa:
+    ruc: "20612345678"
+    razon-social: BOTICA MEGAFARMA S.A.C.
+    direccion: Av. Los Olivos 123, Lima
   # Crea usuarios de prueba y lotes de demostracion si la base esta vacia.
   datos-demo: true

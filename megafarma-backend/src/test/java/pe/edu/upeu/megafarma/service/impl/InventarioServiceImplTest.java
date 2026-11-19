@@ -71,7 +71,7 @@ class InventarioServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new InventarioServiceImpl(productoRepository, loteRepository,
-                movimientoRepository, usuarioActual, 60);
+                movimientoRepository, usuarioActual, 90, 30, 60);
 
         Usuario almacenero = new Usuario();
         almacenero.setId(3L);

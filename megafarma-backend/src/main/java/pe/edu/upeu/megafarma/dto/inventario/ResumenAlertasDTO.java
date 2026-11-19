@@ -26,4 +26,8 @@ public class ResumenAlertasDTO {
     private int lotesPorVencer;
     private int lotesVencidos;
     private int diasConsiderados;
+    /* Lotes por nivel de urgencia (los vencidos cuentan como criticos). */
+    private int lotesCriticos;
+    private int lotesMedios;
+    private int lotesBajos;
 }

@@ -29,7 +29,17 @@ public final class VentaMapper {
                 venta.getMotivoAnulacion(),
                 venta.getAnuladaEn(),
                 // stream: recorre la coleccion aplicando map/filter y junta el resultado
-                venta.getDetalles().stream().map(VentaMapper::toResponse).toList());
+                venta.getDetalles().stream().map(VentaMapper::toResponse).toList(),
+                venta.getSubtotal(),
+                venta.getIgv(),
+                venta.getMontoRecibido(),
+                venta.getVuelto(),
+                venta.getPagos().stream()
+                        .map(p -> new pe.edu.upeu.megafarma.dto.venta.PagoResponseDTO(
+                                p.getMedio().name(), p.getMonto(), p.getReferencia()))
+                        .toList(),
+                venta.getTipoComprobante() == null ? null : venta.getTipoComprobante().name(),
+                venta.getNumeroComprobante());
     }
 
     public static DetalleVentaResponseDTO toResponse(DetalleVenta detalle) {

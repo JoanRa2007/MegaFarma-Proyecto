@@ -533,7 +533,7 @@ class ApiIntegrationTest {
         mvc.perform(get("/api/v1/alertas/resumen").header("Authorization", vendedor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lotesVencidos").isNumber())
-                .andExpect(jsonPath("$.diasConsiderados").value(60));
+                .andExpect(jsonPath("$.diasConsiderados").value(90));
     }
 
     @Test
