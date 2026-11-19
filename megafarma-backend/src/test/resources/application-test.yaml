@@ -11,3 +11,7 @@ spring:
 logging:
   level:
     root: WARN
+
+app:
+  seguridad:
+    max-fallos-por-ip: 15

@@ -38,8 +38,11 @@ public class InventarioController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
     private final InventarioService inventarioService;
+    private final pe.edu.upeu.megafarma.service.AuditoriaService auditoria;
 
-    public InventarioController(InventarioService inventarioService) {
+    public InventarioController(InventarioService inventarioService,
+            pe.edu.upeu.megafarma.service.AuditoriaService auditoria) {
+        this.auditoria = auditoria;
         // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.inventarioService = inventarioService;
     }
@@ -54,8 +57,10 @@ public class InventarioController {
             // @Valid: ejecuta las validaciones del DTO; si alguna falla responde 400 sin entrar al metodo
             @Valid @RequestBody EntradaRequestDTO request) {
         // responde HTTP 201 Created con el recurso recien creado
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(inventarioService.registrarEntrada(request));
+        LoteResponseDTO lote = inventarioService.registrarEntrada(request);
+        auditoria.registrar("ENTRADA_LOTE", lote.getProductoCodigo() + " lote " + lote.getNumeroLote()
+                + " +" + request.getCantidad(), true);
+        return ResponseEntity.status(HttpStatus.CREATED).body(lote);
     }
 
     // @GetMapping: atiende peticiones HTTP GET (leer)
@@ -75,7 +80,9 @@ public class InventarioController {
     @PostMapping("/ajustes")
     @Operation(summary = "Ajustar el stock de un lote según el conteo físico (HU-07)")
     public ResponseEntity<LoteResponseDTO> ajustar(@Valid @RequestBody AjusteRequestDTO request) {
-        return ResponseEntity.ok(inventarioService.ajustar(request));
+        LoteResponseDTO lote = inventarioService.ajustar(request);
+        auditoria.registrar("AJUSTE_INVENTARIO", "Lote " + lote.getNumeroLote() + " queda en " + lote.getCantidadActual(), true);
+        return ResponseEntity.ok(lote);
     }
 
     @PostMapping("/lotes/{loteId}/baja")
@@ -84,7 +91,9 @@ public class InventarioController {
             // @PathVariable: toma el valor de la ruta, por ejemplo el {id}
             @PathVariable Long loteId,
             @Valid @RequestBody MotivoRequestDTO request) {
-        return ResponseEntity.ok(inventarioService.darDeBaja(loteId, request.getMotivo()));
+        LoteResponseDTO lote = inventarioService.darDeBaja(loteId, request.getMotivo());
+        auditoria.registrar("BAJA_LOTE", "Lote " + lote.getNumeroLote() + ": " + request.getMotivo(), true);
+        return ResponseEntity.ok(lote);
     }
 
     @GetMapping("/kardex/{productoId}")

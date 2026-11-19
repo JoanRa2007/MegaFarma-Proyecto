@@ -34,17 +34,21 @@ import java.time.LocalDate;
 @RequestMapping("/api/v1/ventas")
 // @Tag: nombre del grupo con que aparece este controlador en Swagger
 @Tag(name = "7. Ventas", description = "Registro con FEFO, consulta y anulación")
+@org.springframework.validation.annotation.Validated
 public class VentaController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
     private final VentaService ventaService;
+    private final pe.edu.upeu.megafarma.service.AuditoriaService auditoria;
     private final pe.edu.upeu.megafarma.service.ComprobanteService comprobanteService;
 
     public VentaController(VentaService ventaService,
-                           pe.edu.upeu.megafarma.service.ComprobanteService comprobanteService) {
+                           pe.edu.upeu.megafarma.service.ComprobanteService comprobanteService,
+                           pe.edu.upeu.megafarma.service.AuditoriaService auditoria) {
         // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.ventaService = ventaService;
         this.comprobanteService = comprobanteService;
+        this.auditoria = auditoria;
     }
 
     // @PostMapping: atiende peticiones HTTP POST (crear o ejecutar una accion)
@@ -56,7 +60,10 @@ public class VentaController {
     public ResponseEntity<VentaResponseDTO> registrar(@Valid @RequestBody VentaRequestDTO request) {
         try {
             // responde HTTP 201 Created con el recurso recien creado
-            return ResponseEntity.status(HttpStatus.CREATED).body(ventaService.registrar(request));
+            VentaResponseDTO venta = ventaService.registrar(request);
+            auditoria.registrar("VENTA_REGISTRADA", venta.getNumero() + " " + venta.getNumeroComprobante()
+                    + " S/ " + venta.getTotal() + " " + venta.getMedioPago(), true);
+            return ResponseEntity.status(HttpStatus.CREATED).body(venta);
         } catch (org.springframework.dao.DataAccessException ex) {
             /*
              * Sprint 2 · R03: si llegan dos envios simultaneos con la misma clave, la
@@ -77,8 +84,8 @@ public class VentaController {
             // @RequestParam: toma el valor de la query string: ?nombre=valor
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(defaultValue = "0") int pagina,
-            @RequestParam(defaultValue = "20") int tamanio) {
+            @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int pagina,
+            @RequestParam(defaultValue = "20") @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(100) int tamanio) {
         // responde HTTP 200 OK; el objeto se convierte a JSON
         return ResponseEntity.ok(ventaService.listar(desde, hasta, pagina, tamanio));
     }
@@ -112,6 +119,8 @@ public class VentaController {
             @PathVariable Long id,
             // @Valid: ejecuta las validaciones del DTO; si alguna falla responde 400 sin entrar al metodo
             @Valid @RequestBody MotivoRequestDTO request) {
-        return ResponseEntity.ok(ventaService.anular(id, request.getMotivo()));
+        VentaResponseDTO anulada = ventaService.anular(id, request.getMotivo());
+        auditoria.registrar("VENTA_ANULADA", anulada.getNumero() + ": " + request.getMotivo(), true);
+        return ResponseEntity.ok(anulada);
     }
 }
