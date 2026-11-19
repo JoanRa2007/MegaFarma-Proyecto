@@ -18,48 +18,56 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import pe.edu.upeu.megafarma.app.core.Resultado
+import pe.edu.upeu.megafarma.app.core.esFechaValida
 import pe.edu.upeu.megafarma.app.core.soles
-import pe.edu.upeu.megafarma.app.domain.model.GrupoReporte
-import pe.edu.upeu.megafarma.app.domain.model.ProductoVendido
+import pe.edu.upeu.megafarma.app.domain.model.Periodo
 import pe.edu.upeu.megafarma.app.domain.model.ReporteInventario
-import pe.edu.upeu.megafarma.app.domain.model.ReporteVentas
+import pe.edu.upeu.megafarma.app.domain.model.ResumenVentas
 import pe.edu.upeu.megafarma.app.domain.repository.ReporteRepository
-import pe.edu.upeu.megafarma.app.presentation.componentes.BarraHorizontal
+import pe.edu.upeu.megafarma.app.presentation.componentes.Campo
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
-import pe.edu.upeu.megafarma.app.presentation.componentes.TarjetaDato
 import pe.edu.upeu.megafarma.app.presentation.componentes.Titulo
-import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
-import pe.edu.upeu.megafarma.app.presentation.tema.ColoresEstado
 
 data class ReportesUiState(
+    val tipo: Periodo = Periodo.DIA,
+    val fecha: String = "",
     val cargando: Boolean = true,
-    val ventas: ReporteVentas? = null,
-    val masVendidos: List<ProductoVendido> = emptyList(),
+    val resumen: ResumenVentas? = null,
     val inventario: ReporteInventario? = null,
     val error: String? = null
 )
 
-/* Reportes de gestion (HU-17, HU-18, HU-19), solo para el administrador. */
+/* Reportes de ventas por dia, mes o año (HU-17 a HU-19) e inventario valorizado (HU-18). */
 class ReportesViewModel(private val repositorio: ReporteRepository) : ViewModel() {
 
     private val _estado = MutableStateFlow(ReportesUiState())
     val estado: StateFlow<ReportesUiState> = _estado.asStateFlow()
 
+    fun elegirTipo(tipo: Periodo) {
+        _estado.update { it.copy(tipo = tipo) }
+        cargar()
+    }
+
+    fun cambiarFecha(fecha: String) = _estado.update { it.copy(fecha = fecha) }
+
     fun cargar() {
+        val e = _estado.value
+        val fecha = e.fecha.trim()
+        if (fecha.isNotEmpty() && !esFechaValida(fecha)) {
+            _estado.update { it.copy(error = "La fecha debe tener el formato AAAA-MM-DD") }
+            return
+        }
         _estado.update { it.copy(cargando = true, error = null) }
         viewModelScope.launch {
-            val ventas = repositorio.ventas()
-            val masVendidos = repositorio.masVendidos()
+            val resumen = repositorio.resumen(e.tipo, fecha.ifEmpty { null })
             val inventario = repositorio.inventario()
-            val error = listOf(ventas, masVendidos, inventario).filterIsInstance<Resultado.Error>().firstOrNull()?.mensaje
             _estado.update {
                 it.copy(
                     cargando = false,
-                    ventas = (ventas as? Resultado.Exito)?.datos,
-                    masVendidos = (masVendidos as? Resultado.Exito)?.datos ?: emptyList(),
+                    resumen = (resumen as? Resultado.Exito)?.datos,
                     inventario = (inventario as? Resultado.Exito)?.datos,
-                    error = error
+                    error = (resumen as? Resultado.Error)?.mensaje ?: (inventario as? Resultado.Error)?.mensaje
                 )
             }
         }
@@ -72,71 +80,34 @@ fun ReportesScreen(viewModel: ReportesViewModel = koinViewModel()) {
     val estado by viewModel.estado.collectAsState()
     LaunchedEffect(Unit) { viewModel.cargar() }
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            val periodo = estado.ventas?.let { "Del ${it.desde} al ${it.hasta}" } ?: "Mes actual"
-            Text(periodo, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = viewModel::cargar) { Text("Actualizar") }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(Periodo.DIA, Periodo.MES, Periodo.ANIO).forEach { t ->
+                FilterChip(selected = estado.tipo == t, onClick = { viewModel.elegirTipo(t) }, label = { Text("Reporte por ${t.etiqueta.lowercase()}") })
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Campo(
+                estado.fecha, viewModel::cambiarFecha, "Fecha (AAAA-MM-DD)", Modifier.widthIn(max = 260.dp),
+                ayuda = "Cualquier día del ${estado.tipo.etiqueta.lowercase()}. Vacío = hoy"
+            )
+            Button(onClick = viewModel::cargar) { Text("Generar") }
         }
 
         when {
-            estado.cargando -> Cargando()
+            estado.cargando && estado.resumen == null -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
             else -> {
-                estado.ventas?.let { v ->
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TarjetaDato("Total vendido", v.totalVendido.soles(), ColoresEstado.ok, Modifier.widthIn(min = 180.dp))
-                        TarjetaDato("Ventas", v.cantidadVentas.toString(), MaterialTheme.colorScheme.primary, Modifier.widthIn(min = 180.dp))
-                        TarjetaDato("Ticket promedio", v.ticketPromedio.soles(), MaterialTheme.colorScheme.secondary, Modifier.widthIn(min = 180.dp))
-                        TarjetaDato("Anuladas", v.ventasAnuladas.toString(), ColoresEstado.peligro, Modifier.widthIn(min = 180.dp), v.totalAnulado.soles())
-                    }
-                    SeccionBarras("Ventas por medio de pago", v.porMedioPago)
-                    SeccionBarras("Ventas por día", v.porDia)
-                }
-
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Titulo("Productos más vendidos")
-                        if (estado.masVendidos.isEmpty()) Vacio("Sin ventas en el período")
-                        estado.masVendidos.forEachIndexed { i, p ->
-                            Row {
-                                Text("${i + 1}. ${p.nombre}", Modifier.weight(1f))
-                                Text("${p.unidades} u · ${p.importe.soles()}", fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-
+                estado.resumen?.let { ResumenVentasVista(it) }
                 estado.inventario?.let { inv ->
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Titulo("Inventario valorizado")
+                            Titulo("Inventario valorizado (hoy)")
                             Text("Valor a precio de venta: ${inv.valorTotal.soles()}", fontWeight = FontWeight.Bold)
                             Text("Unidades disponibles: ${inv.unidadesTotales}")
                             Text("Productos con stock: ${inv.productosConStock}")
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SeccionBarras(titulo: String, grupos: List<GrupoReporte>) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-            Titulo(titulo)
-            Spacer(Modifier.height(8.dp))
-            if (grupos.isEmpty()) {
-                Vacio("Sin datos en el período")
-            } else {
-                val maximo = grupos.maxOf { it.total }.takeIf { it > 0 } ?: 1.0
-                grupos.forEach { g ->
-                    BarraHorizontal(g.etiqueta, (g.total / maximo).toFloat(), g.total.soles())
                 }
             }
         }

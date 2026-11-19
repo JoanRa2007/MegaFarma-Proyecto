@@ -44,6 +44,7 @@ object ColoresEstado {
     val ok = Color(0xFF2E7D32)
     val alerta = Color(0xFFE65100)
     val peligro = Color(0xFFC62828)
+    val aviso = Color(0xFFB8860B)
     val neutro = Color(0xFF546E7A)
 }
 
