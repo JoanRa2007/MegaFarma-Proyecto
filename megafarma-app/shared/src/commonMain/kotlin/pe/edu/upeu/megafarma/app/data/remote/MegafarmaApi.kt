@@ -116,13 +116,17 @@ class MegafarmaApi(
         }
     }
 
-    suspend fun ventas(desde: String?, hasta: String?): Resultado<PaginaDto<VentaDto>> = llamar {
+    suspend fun ventas(desde: String?, hasta: String?, pagina: Int, tamanio: Int): Resultado<PaginaDto<VentaDto>> = llamar {
         get(url("/ventas")) {
             if (desde != null) parameter("desde", desde)
             if (hasta != null) parameter("hasta", hasta)
-            parameter("tamanio", 100)
+            parameter("pagina", pagina)
+            parameter("tamanio", tamanio)
         }
     }
+
+    /* HU-10: detalle actualizado de una venta (por si otra sesion la anulo). */
+    suspend fun venta(id: Long): Resultado<VentaDto> = llamar { get(url("/ventas/$id")) }
 
     suspend fun anularVenta(id: Long, motivo: String): Resultado<VentaDto> = llamar {
         post(url("/ventas/$id/anular")) {
