@@ -37,12 +37,16 @@ import java.util.List;
 @RequestMapping("/api/v1/productos")
 // @Tag: nombre del grupo con que aparece este controlador en Swagger
 @Tag(name = "3. Productos", description = "CRUD y búsqueda de productos y medicamentos")
+@org.springframework.validation.annotation.Validated
 public class ProductoController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
     private final ProductoService productoService;
+    private final pe.edu.upeu.megafarma.service.AuditoriaService auditoria;
 
-    public ProductoController(ProductoService productoService) {
+    public ProductoController(ProductoService productoService,
+            pe.edu.upeu.megafarma.service.AuditoriaService auditoria) {
+        this.auditoria = auditoria;
         // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.productoService = productoService;
     }
@@ -58,12 +62,12 @@ public class ProductoController {
             description = "Paginado. Sin 'q' devuelve todos los productos activos.")
     public ResponseEntity<PaginaResponseDTO<ProductoResponseDTO>> listar(
             // @RequestParam: toma el valor de la query string: ?nombre=valor
-            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @jakarta.validation.constraints.Pattern(regexp = "^(?!.*--)[\\p{L}\\p{N}\\s.,'()/%+-]{0,100}$", message = "La búsqueda contiene caracteres no permitidos (máximo 100 letras, números y . , ' ( ) / % + -, sin --)") String q,
             @RequestParam(defaultValue = "false") boolean incluirInactivos,
-            @RequestParam(defaultValue = "0") int pagina,
-            @RequestParam(defaultValue = "20") int tamanio,
-            @RequestParam(defaultValue = "nombre") String ordenarPor,
-            @RequestParam(defaultValue = "asc") String direccion) {
+            @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int pagina,
+            @RequestParam(defaultValue = "20") @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(100) int tamanio,
+            @RequestParam(defaultValue = "nombre") @jakarta.validation.constraints.Pattern(regexp = "^[a-zA-Z]{1,20}$", message = "Campo de orden inválido") String ordenarPor,
+            @RequestParam(defaultValue = "asc") @jakarta.validation.constraints.Pattern(regexp = "^(?i)(asc|desc)$", message = "La dirección debe ser asc o desc") String direccion) {
 
         // responde HTTP 200 OK; el objeto se convierte a JSON
         return ResponseEntity.ok(productoService.listar(
@@ -89,7 +93,9 @@ public class ProductoController {
     @Operation(summary = "Registrar un producto (HU-01)")
     public ResponseEntity<ProductoResponseDTO> crear(@Valid @RequestBody ProductoRequestDTO request) {
         // responde HTTP 201 Created con el recurso recien creado
-        return ResponseEntity.status(HttpStatus.CREATED).body(productoService.crear(request));
+        ProductoResponseDTO creado = productoService.crear(request);
+        auditoria.registrar("PRODUCTO_CREADO", creado.getCodigo() + " " + creado.getNombre(), true);
+        return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
     // @PutMapping: atiende peticiones HTTP PUT (actualizar todo el recurso)
@@ -100,7 +106,9 @@ public class ProductoController {
             @PathVariable Long id,
             // @Valid: ejecuta las validaciones del DTO; si alguna falla responde 400 sin entrar al metodo
             @Valid @RequestBody ProductoRequestDTO request) {
-        return ResponseEntity.ok(productoService.actualizar(id, request));
+        ProductoResponseDTO actualizado = productoService.actualizar(id, request);
+        auditoria.registrar("PRODUCTO_ACTUALIZADO", actualizado.getCodigo() + " precio " + actualizado.getPrecioVenta(), true);
+        return ResponseEntity.ok(actualizado);
     }
 
     // @DeleteMapping: atiende peticiones HTTP DELETE (eliminar o desactivar)
@@ -109,6 +117,7 @@ public class ProductoController {
             description = "Borrado lógico: conserva lotes, ventas y kardex.")
     public ResponseEntity<Void> desactivar(@PathVariable Long id) {
         productoService.desactivar(id);
+        auditoria.registrar("PRODUCTO_DESACTIVADO", "Producto id " + id, true);
         // responde HTTP 204 No Content: salio bien y no hay cuerpo
         return ResponseEntity.noContent().build();
     }
@@ -117,6 +126,8 @@ public class ProductoController {
     @PatchMapping("/{id}/activar")
     @Operation(summary = "Reactivar un producto desactivado")
     public ResponseEntity<ProductoResponseDTO> activar(@PathVariable Long id) {
-        return ResponseEntity.ok(productoService.activar(id));
+        ProductoResponseDTO activado = productoService.activar(id);
+        auditoria.registrar("PRODUCTO_ACTIVADO", activado.getCodigo(), true);
+        return ResponseEntity.ok(activado);
     }
 }

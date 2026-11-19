@@ -21,14 +21,24 @@ spring:
 
 server:
   port: 8080
+  # Errores: nunca se envian trazas ni mensajes internos al cliente.
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+    include-exception: false
+    whitelabel:
+      enabled: false
 
+# Swagger desactivado por defecto: solo los perfiles dev y local lo encienden.
 springdoc:
   swagger-ui:
+    enabled: false
     path: /swagger-ui.html
     operations-sorter: alpha
     tags-sorter: alpha
   api-docs:
-    enabled: true
+    enabled: false
 
 app:
   # Sprint 2 · R04: zona horaria operativa de la botica.
@@ -43,6 +53,10 @@ app:
     expiracion-minutos: 480
   seguridad:
     max-intentos-fallidos: 5
+    # Fallos de inicio de sesion permitidos por IP en 60 segundos (fuerza bruta).
+    max-fallos-por-ip: 10
+  swagger:
+    habilitado: false
   inventario:
     # Ventana de alertas de vencimiento y niveles: CRITICO <= 30, MEDIO <= 60, BAJO <= 90 dias.
     dias-alerta-vencimiento: 90

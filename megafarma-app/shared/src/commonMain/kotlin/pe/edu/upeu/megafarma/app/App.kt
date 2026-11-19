@@ -6,6 +6,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import org.koin.compose.koinInject
 import pe.edu.upeu.megafarma.app.domain.repository.AuthRepository
@@ -25,6 +27,7 @@ fun App() {
 
     MegafarmaTema(oscuro = oscuro) {
         val auth = koinInject<AuthRepository>()
+        val scope = rememberCoroutineScope()
         val sesion by auth.sesion.collectAsState()
         val actual = sesion
 
@@ -35,7 +38,7 @@ fun App() {
                 sesion = actual,
                 oscuro = oscuro,
                 onCambiarTema = { oscuro = !oscuro },
-                onCerrarSesion = { auth.cerrarSesion() }
+                onCerrarSesion = { scope.launch { auth.cerrarSesion() } }
             )
         }
     }

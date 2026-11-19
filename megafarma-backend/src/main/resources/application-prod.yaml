@@ -1,0 +1,31 @@
+# Perfil de produccion: endurecido.
+#  - La clave del JWT y la base de datos llegan por variables de entorno (sin valores por defecto:
+#    si faltan, la aplicacion no arranca).
+#  - Swagger desactivado: la documentacion de la API no queda expuesta.
+#  - Sin datos de demostracion ni usuarios de prueba.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USUARIO}
+    password: ${DB_CLAVE}
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+app:
+  swagger:
+    habilitado: false
+  datos-demo: false
+  jwt:
+    secret: ${APP_JWT_SECRET}
+    expiracion-minutos: 120
+  cors:
+    allowed-origins: ${APP_CORS_ORIGENES}
+
+logging:
+  level:
+    root: WARN
+    pe.edu.upeu.megafarma: INFO

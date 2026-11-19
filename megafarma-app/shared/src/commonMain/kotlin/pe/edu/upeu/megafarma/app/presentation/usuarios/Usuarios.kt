@@ -1,5 +1,6 @@
 package pe.edu.upeu.megafarma.app.presentation.usuarios
 
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tarjeta
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -137,7 +138,7 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(estado.usuarios, key = { it.id }) { u ->
-                    Card(Modifier.fillMaxWidth()) {
+                    Tarjeta(Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(u.nombreCompleto, fontWeight = FontWeight.SemiBold)

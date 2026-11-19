@@ -28,7 +28,7 @@ interface AuthRepository {
     val sesion: StateFlow<Sesion?>
     val servidor: String
     suspend fun iniciarSesion(usuario: String, clave: String, servidor: String): Resultado<Sesion>
-    fun cerrarSesion()
+    suspend fun cerrarSesion()
 }
 
 interface ProductoRepository {
@@ -75,4 +75,5 @@ interface UsuarioRepository {
     suspend fun roles(): Resultado<List<pe.edu.upeu.megafarma.app.domain.model.Rol>>
     suspend fun guardar(id: Long?, datos: pe.edu.upeu.megafarma.app.domain.model.DatosUsuario): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>
     suspend fun cambiarEstado(id: Long, activo: Boolean): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>
+    suspend fun bitacora(usuario: String, accion: String, pagina: Int): Resultado<pe.edu.upeu.megafarma.app.domain.model.PaginaAuditoria>
 }
