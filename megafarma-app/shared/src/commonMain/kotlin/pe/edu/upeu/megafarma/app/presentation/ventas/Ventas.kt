@@ -1,5 +1,6 @@
 package pe.edu.upeu.megafarma.app.presentation.ventas
 
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tarjeta
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
@@ -302,7 +303,7 @@ fun VentasScreen(sesion: Sesion, viewModel: VentasViewModel = koinViewModel()) {
 
 @Composable
 private fun TarjetaVenta(venta: Venta, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable { onClick() }) {
+    Tarjeta(Modifier.fillMaxWidth().clickable { onClick() }) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(venta.numero, fontWeight = FontWeight.SemiBold)

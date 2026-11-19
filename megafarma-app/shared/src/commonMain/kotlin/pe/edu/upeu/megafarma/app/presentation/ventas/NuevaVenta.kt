@@ -1,5 +1,6 @@
 package pe.edu.upeu.megafarma.app.presentation.ventas
 
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tarjeta
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
@@ -277,7 +278,7 @@ fun NuevaVentaScreen(viewModel: NuevaVentaViewModel = koinViewModel()) {
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     seccionBuscador(estado, viewModel)
                 }
-                Card(Modifier.weight(1.1f).fillMaxHeight()) {
+                Tarjeta(Modifier.weight(1.1f).fillMaxHeight()) {
                     LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         seccionVenta(estado, viewModel)
                     }
@@ -326,7 +327,7 @@ private fun LazyListScope.seccionBuscador(estado: NuevaVentaUiState, viewModel: 
         item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
     }
     items(estado.resultados, key = { "p-${it.id}" }) { p ->
-        Card(Modifier.fillMaxWidth()) {
+        Tarjeta(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(p.nombre, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -422,7 +423,7 @@ private fun LazyListScope.seccionVenta(estado: NuevaVentaUiState, viewModel: Nue
 
     estado.error?.let { mensaje ->
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
+            Tarjeta(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(mensaje, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.weight(1f))
                     TextButton(onClick = viewModel::cerrarError) { Text("Cerrar") }
