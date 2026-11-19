@@ -615,7 +615,7 @@ class ApiIntegrationTest {
 
         mvc.perform(get("/api/v1/reportes/ventas").param("desde", "2026-12-31").param("hasta", "2026-01-01")
                         .header("Authorization", admin))
-                .andExpect(status().isConflict());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

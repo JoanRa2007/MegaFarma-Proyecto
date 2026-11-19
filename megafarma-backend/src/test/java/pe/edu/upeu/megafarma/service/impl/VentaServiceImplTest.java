@@ -295,7 +295,7 @@ class VentaServiceImplTest {
         void devuelveElStock() {
             Venta venta = ventaExistente();
             loteCercano.setCantidadActual(6);
-            when(ventaRepository.findById(900L)).thenReturn(Optional.of(venta));
+            when(ventaRepository.buscarParaActualizar(900L)).thenReturn(Optional.of(venta));
 
             VentaResponseDTO response = service.anular(900L, "Error de digitación");
 
@@ -311,7 +311,7 @@ class VentaServiceImplTest {
         void yaAnulada() {
             Venta venta = ventaExistente();
             venta.setEstado(EstadoVenta.ANULADA);
-            when(ventaRepository.findById(900L)).thenReturn(Optional.of(venta));
+            when(ventaRepository.buscarParaActualizar(900L)).thenReturn(Optional.of(venta));
 
             assertThatThrownBy(() -> service.anular(900L, "Otra vez"))
                     .isInstanceOf(ReglaNegocioException.class)
@@ -323,7 +323,7 @@ class VentaServiceImplTest {
         @Test
         @DisplayName("responde no encontrado si la venta no existe")
         void ventaInexistente() {
-            when(ventaRepository.findById(1L)).thenReturn(Optional.empty());
+            when(ventaRepository.buscarParaActualizar(1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.anular(1L, "x"))
                     .isInstanceOf(RecursoNoEncontradoException.class);
