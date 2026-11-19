@@ -61,6 +61,9 @@ class MegafarmaApi(
         }
     }
 
+    /* Revoca el token en el servidor: aunque alguien lo hubiera copiado, deja de servir. */
+    suspend fun logout(): Resultado<Unit> = llamar { post(url("/auth/logout")) }
+
     // ---------- Catalogo ----------
     suspend fun productos(texto: String, incluirInactivos: Boolean): Resultado<PaginaDto<ProductoDto>> = llamar {
         get(url("/productos")) {
@@ -184,6 +187,16 @@ class MegafarmaApi(
         patch(url("/usuarios/$id/estado")) { parameter("activo", activo) }
     }
 
+    /* Bitacora de seguridad (solo ADMIN). */
+    suspend fun auditoria(usuario: String, accion: String, pagina: Int): Resultado<PaginaDto<pe.edu.upeu.megafarma.app.data.remote.dto.AuditoriaDto>> = llamar {
+        get(url("/auditoria")) {
+            if (usuario.isNotBlank()) parameter("usuario", usuario)
+            if (accion.isNotBlank()) parameter("accion", accion)
+            parameter("pagina", pagina)
+            parameter("tamanio", 50)
+        }
+    }
+
     // ---------- Dashboard ----------
     suspend fun dashboard(periodo: String): Resultado<ResumenVentasDto> = llamar {
         get(url("/dashboard")) { parameter("periodo", periodo) }
@@ -236,6 +249,8 @@ class MegafarmaApi(
         val error = respuesta.body<ErrorDto>()
         val detalle = error.validationErrors?.values?.joinToString(" · ")
         when {
+            respuesta.status == HttpStatusCode.TooManyRequests ->
+                error.message ?: "Demasiados intentos. Espere un minuto e intente de nuevo."
             !detalle.isNullOrBlank() -> detalle
             !error.message.isNullOrBlank() -> error.message
             else -> "Error ${respuesta.status.value}"

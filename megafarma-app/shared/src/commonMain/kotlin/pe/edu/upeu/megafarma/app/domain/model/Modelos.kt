@@ -280,3 +280,21 @@ data class Rol(val nombre: String, val descripcion: String?, val permisos: List<
 
 /* Datos para crear o editar un usuario (password vacio = no cambiar). */
 data class DatosUsuario(val username: String, val password: String?, val nombreCompleto: String, val rol: String)
+
+/* Evento de la bitacora de seguridad (auditoria). */
+data class RegistroAuditoria(
+    val id: Long,
+    val fecha: String,
+    val usuario: String,
+    val accion: String,
+    val detalle: String?,
+    val ip: String?,
+    val exito: Boolean
+)
+
+data class PaginaAuditoria(
+    val registros: List<RegistroAuditoria>,
+    val pagina: Int,
+    val totalPaginas: Int,
+    val totalElementos: Long
+)
