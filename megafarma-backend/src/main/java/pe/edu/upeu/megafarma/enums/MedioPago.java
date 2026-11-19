@@ -11,5 +11,7 @@ public enum MedioPago {
     TARJETA,
     YAPE,
     PLIN,
-    TRANSFERENCIA
+    TRANSFERENCIA,
+    /* Venta pagada con dos o mas medios (pago mixto). */
+    MIXTO
 }
