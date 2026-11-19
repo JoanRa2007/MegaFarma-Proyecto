@@ -1,6 +1,6 @@
 # Megafarma · App móvil y página web
 
-Frontend del sistema de ventas e inventario de la botica Megafarma. Es **un solo proyecto Kotlin Multiplatform + Compose Multiplatform** que genera:
+Frontend del **sistema de punto de venta** de la botica Megafarma. Es **un solo proyecto Kotlin Multiplatform + Compose Multiplatform** que genera:
 
 - la **app Android**,
 - la **página web** (Kotlin/Wasm en el navegador),
@@ -36,10 +36,12 @@ Lo propio de cada plataforma está en `androidMain`, `wasmJsMain` e `iosMain` co
 | Productos y stock | Búsqueda; detalle con stock por lote y cuál sale primero (FEFO) | Todos |
 | — Nuevo / editar / desactivar producto | | Admin, Almacenero |
 | — Registrar entrada por lote, dar de baja lote vencido | | Admin, Almacenero |
-| Nueva venta | Carrito, medio de pago; muestra de qué lotes salió cada unidad | Admin, Vendedor |
-| Ventas | Ventas del mes y su detalle; anulación | Admin, Vendedor (anular: Admin) |
-| Alertas | Stock mínimo y vencimientos a 30/60/90 días | Todos |
-| Reportes | Total vendido, ticket promedio, por medio de pago, por día, más vendidos, inventario valorizado | Admin |
+| Nueva venta (caja) | Carrito, cliente, boleta o factura, pagos mixtos con vuelto; al cobrar muestra el comprobante electrónico | Admin, Vendedor |
+| Dashboard de ventas | Hoy, semana, mes o año: total, ticket promedio, comparación con el período anterior, gráfico, top 5, categorías y medios de pago | Admin |
+| Ventas | Búsqueda por fechas con páginas, detalle, comprobante y XML; anulación con confirmación | Admin, Vendedor (anular: Admin) |
+| Alertas | Stock mínimo y vencimientos por nivel: crítico, medio y bajo | Todos |
+| Reportes | Reporte del día, mes o año (con gráfico), más vendidos, categorías, medios de pago e inventario valorizado | Admin |
+| Usuarios | Crear usuarios, cambiar rol o contraseña, activar y desactivar cuentas | Admin |
 
 El menú solo muestra lo que el rol puede usar. Tiene modo claro/oscuro y se adapta al ancho: menú fijo en pantallas anchas (web) y menú desplegable en el celular.
 

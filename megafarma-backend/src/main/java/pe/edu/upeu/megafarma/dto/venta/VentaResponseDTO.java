@@ -38,4 +38,11 @@ public class VentaResponseDTO {
     private String motivoAnulacion;
     private LocalDateTime anuladaEn;
     private List<DetalleVentaResponseDTO> detalles;
+    private BigDecimal subtotal;
+    private BigDecimal igv;
+    private BigDecimal montoRecibido;
+    private BigDecimal vuelto;
+    private List<PagoResponseDTO> pagos;
+    private String tipoComprobante;
+    private String numeroComprobante;
 }
