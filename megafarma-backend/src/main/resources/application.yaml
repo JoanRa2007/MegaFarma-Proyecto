@@ -13,6 +13,11 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  jackson:
+    # Sprint 2 · CP-S2-40: una cantidad decimal (1.5) se rechaza con 400 en vez de truncarse a 1.
+    deserialization:
+      accept-float-as-int: false
+    time-zone: America/Lima
 
 server:
   port: 8080
@@ -26,6 +31,8 @@ springdoc:
     enabled: true
 
 app:
+  # Sprint 2 · R04: zona horaria operativa de la botica.
+  zona-horaria: America/Lima
   # Origenes web autorizados (la app movil nativa no usa CORS).
   cors:
     allowed-origins: http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081

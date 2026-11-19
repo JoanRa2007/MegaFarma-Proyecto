@@ -5,7 +5,7 @@ package pe.edu.upeu.megafarma.util;
  * Funciones de apoyo reutilizadas por varios servicios.
  */
 
-import pe.edu.upeu.megafarma.exception.ReglaNegocioException;
+import pe.edu.upeu.megafarma.exception.SolicitudInvalidaException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,13 +21,13 @@ public record RangoFechas(LocalDate desde, LocalDate hasta) {
 
     public static RangoFechas de(LocalDate desde, LocalDate hasta) {
         // fecha de hoy segun el reloj del servidor
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(); // zona horaria de Lima (ver ZonaHorariaConfig)
         LocalDate fin = hasta == null ? hoy : hasta;
         LocalDate inicio = desde == null ? fin.withDayOfMonth(1) : desde;
 
         if (inicio.isAfter(fin)) {
-            // regla de negocio incumplida -> el cliente recibe HTTP 409 con este mensaje
-            throw new ReglaNegocioException(
+            // Sprint 2 · CP-S2-48: un rango invertido es una solicitud invalida -> HTTP 400
+            throw new SolicitudInvalidaException(
                     "La fecha 'desde' no puede ser posterior a la fecha 'hasta'");
         }
         return new RangoFechas(inicio, fin);

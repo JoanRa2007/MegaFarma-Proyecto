@@ -4,7 +4,7 @@ Sistema de ventas e inventario de la botica **Megafarma**. Proyecto del curso De
 
 | Carpeta | Parte | Contenido |
 |---|---|---|
-| [`megafarma-backend/`](megafarma-backend) | Backend | API REST en Spring Boot 4 (Java 21) con JWT, PostgreSQL, Flyway, Swagger y 71 pruebas automáticas |
+| [`megafarma-backend/`](megafarma-backend) | Backend | API REST en Spring Boot 4 (Java 21) con JWT, PostgreSQL, Flyway, Swagger y 77 pruebas automáticas |
 | [`megafarma-app/`](megafarma-app) | Frontend (app + web) | Kotlin Multiplatform + Compose Multiplatform: un solo código que genera la app Android, la página web (Kotlin/Wasm) y la app iOS |
 
 ```
