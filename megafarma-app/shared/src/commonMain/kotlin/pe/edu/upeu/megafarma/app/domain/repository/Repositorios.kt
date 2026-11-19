@@ -49,7 +49,9 @@ interface InventarioRepository {
 }
 
 interface VentaRepository {
-    suspend fun registrar(lineas: List<LineaVenta>, medioPago: MedioPago, clave: String): Resultado<Venta>
+    suspend fun registrar(venta: pe.edu.upeu.megafarma.app.domain.model.NuevaVenta, clave: String): Resultado<Venta>
+    suspend fun comprobante(ventaId: Long): Resultado<pe.edu.upeu.megafarma.app.domain.model.Comprobante>
+    suspend fun comprobanteXml(ventaId: Long): Resultado<String>
     suspend fun listar(desde: String?, hasta: String?, pagina: Int, tamanio: Int): Resultado<PaginaVentas>
     suspend fun buscar(id: Long): Resultado<Venta>
     suspend fun anular(id: Long, motivo: String): Resultado<Venta>
@@ -59,4 +61,18 @@ interface ReporteRepository {
     suspend fun ventas(): Resultado<ReporteVentas>
     suspend fun masVendidos(): Resultado<List<ProductoVendido>>
     suspend fun inventario(): Resultado<ReporteInventario>
+    suspend fun dashboard(periodo: pe.edu.upeu.megafarma.app.domain.model.Periodo): Resultado<pe.edu.upeu.megafarma.app.domain.model.ResumenVentas>
+    suspend fun resumen(tipo: pe.edu.upeu.megafarma.app.domain.model.Periodo, fecha: String?): Resultado<pe.edu.upeu.megafarma.app.domain.model.ResumenVentas>
+}
+
+interface ClienteRepository {
+    suspend fun buscar(texto: String): Resultado<List<pe.edu.upeu.megafarma.app.domain.model.Cliente>>
+    suspend fun crear(datos: pe.edu.upeu.megafarma.app.domain.model.DatosCliente): Resultado<pe.edu.upeu.megafarma.app.domain.model.Cliente>
+}
+
+interface UsuarioRepository {
+    suspend fun listar(): Resultado<List<pe.edu.upeu.megafarma.app.domain.model.Usuario>>
+    suspend fun roles(): Resultado<List<pe.edu.upeu.megafarma.app.domain.model.Rol>>
+    suspend fun guardar(id: Long?, datos: pe.edu.upeu.megafarma.app.domain.model.DatosUsuario): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>
+    suspend fun cambiarEstado(id: Long, activo: Boolean): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>
 }

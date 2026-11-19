@@ -18,6 +18,13 @@ import kotlinx.coroutines.CancellationException
 import pe.edu.upeu.megafarma.app.core.Resultado
 import pe.edu.upeu.megafarma.app.data.local.SesionManager
 import pe.edu.upeu.megafarma.app.data.remote.dto.CategoriaDto
+import pe.edu.upeu.megafarma.app.data.remote.dto.ClienteDto
+import pe.edu.upeu.megafarma.app.data.remote.dto.ClienteRequestDto
+import pe.edu.upeu.megafarma.app.data.remote.dto.ComprobanteDto
+import pe.edu.upeu.megafarma.app.data.remote.dto.ResumenVentasDto
+import pe.edu.upeu.megafarma.app.data.remote.dto.RolDto
+import pe.edu.upeu.megafarma.app.data.remote.dto.UsuarioDto
+import pe.edu.upeu.megafarma.app.data.remote.dto.UsuarioRequestDto
 import pe.edu.upeu.megafarma.app.data.remote.dto.EntradaRequestDto
 import pe.edu.upeu.megafarma.app.data.remote.dto.ErrorDto
 import pe.edu.upeu.megafarma.app.data.remote.dto.LoginRequestDto
@@ -132,6 +139,60 @@ class MegafarmaApi(
         post(url("/ventas/$id/anular")) {
             contentType(ContentType.Application.Json)
             setBody(MotivoDto(motivo))
+        }
+    }
+
+    suspend fun comprobante(ventaId: Long): Resultado<ComprobanteDto> = llamar { get(url("/ventas/$ventaId/comprobante")) }
+
+    suspend fun comprobanteXml(ventaId: Long): Resultado<String> = llamar { get(url("/ventas/$ventaId/comprobante/xml")) }
+
+    // ---------- Clientes ----------
+    suspend fun clientes(texto: String): Resultado<PaginaDto<ClienteDto>> = llamar {
+        get(url("/clientes")) {
+            if (texto.isNotBlank()) parameter("q", texto)
+            parameter("tamanio", 20)
+        }
+    }
+
+    suspend fun crearCliente(request: ClienteRequestDto): Resultado<ClienteDto> = llamar {
+        post(url("/clientes")) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    // ---------- Usuarios (solo ADMIN) ----------
+    suspend fun usuarios(): Resultado<List<UsuarioDto>> = llamar { get(url("/usuarios")) }
+
+    suspend fun roles(): Resultado<List<RolDto>> = llamar { get(url("/roles")) }
+
+    suspend fun crearUsuario(request: UsuarioRequestDto): Resultado<UsuarioDto> = llamar {
+        post(url("/usuarios")) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    suspend fun actualizarUsuario(id: Long, request: UsuarioRequestDto): Resultado<UsuarioDto> = llamar {
+        put(url("/usuarios/$id")) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    suspend fun cambiarEstadoUsuario(id: Long, activo: Boolean): Resultado<UsuarioDto> = llamar {
+        patch(url("/usuarios/$id/estado")) { parameter("activo", activo) }
+    }
+
+    // ---------- Dashboard ----------
+    suspend fun dashboard(periodo: String): Resultado<ResumenVentasDto> = llamar {
+        get(url("/dashboard")) { parameter("periodo", periodo) }
+    }
+
+    suspend fun reporteResumen(tipo: String, fecha: String?): Resultado<ResumenVentasDto> = llamar {
+        get(url("/reportes/resumen")) {
+            parameter("tipo", tipo)
+            if (!fecha.isNullOrBlank()) parameter("fecha", fecha)
         }
     }
 
