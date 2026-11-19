@@ -51,7 +51,11 @@ class AuthRepositoryImpl(
         return resultado
     }
 
-    override fun cerrarSesion() = sesionManager.cerrar()
+    /* Primero revoca el token en el servidor (si no hay red, igual cierra la sesion local). */
+    override suspend fun cerrarSesion() {
+        if (sesionManager.token != null) api.logout()
+        sesionManager.cerrar()
+    }
 }
 
 class ProductoRepositoryImpl(private val api: MegafarmaApi) : ProductoRepository {
@@ -175,4 +179,9 @@ class UsuarioRepositoryImpl(private val api: MegafarmaApi) : pe.edu.upeu.megafar
     }
 
     override suspend fun cambiarEstado(id: Long, activo: Boolean) = api.cambiarEstadoUsuario(id, activo).mapear { it.aDominio() }
+
+    override suspend fun bitacora(usuario: String, accion: String, pagina: Int) =
+        api.auditoria(usuario, accion, pagina).mapear { p ->
+            pe.edu.upeu.megafarma.app.domain.model.PaginaAuditoria(p.contenido.map { it.aDominio() }, p.pagina, p.totalPaginas, p.totalElementos)
+        }
 }

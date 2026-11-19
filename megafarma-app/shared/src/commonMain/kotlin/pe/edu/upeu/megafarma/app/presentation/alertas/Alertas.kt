@@ -1,5 +1,6 @@
 package pe.edu.upeu.megafarma.app.presentation.alertas
 
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tarjeta
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
@@ -124,7 +125,7 @@ fun AlertasScreen(viewModel: AlertasViewModel = koinViewModel()) {
                 if (estado.stockMinimo.isEmpty()) Vacio("Ningún producto está en su stock mínimo")
                 else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(estado.stockMinimo, key = { it.productoId }) { s ->
-                        Card(Modifier.fillMaxWidth()) {
+                        Tarjeta(Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(s.nombre, fontWeight = FontWeight.SemiBold)
@@ -144,7 +145,7 @@ fun AlertasScreen(viewModel: AlertasViewModel = koinViewModel()) {
                 if (lista.isEmpty()) Vacio("No hay lotes en ese nivel")
                 else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(lista, key = { it.id }) { l ->
-                        Card(Modifier.fillMaxWidth()) {
+                        Tarjeta(Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(l.productoNombre, fontWeight = FontWeight.SemiBold)

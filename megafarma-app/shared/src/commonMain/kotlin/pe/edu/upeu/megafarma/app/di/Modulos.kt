@@ -77,6 +77,7 @@ val moduloPresentacion = module {
     viewModel { pe.edu.upeu.megafarma.app.presentation.dashboard.DashboardViewModel(get()) }
     viewModel { pe.edu.upeu.megafarma.app.presentation.usuarios.UsuariosViewModel(get()) }
     viewModel { AlertasViewModel(get()) }
+    viewModel { pe.edu.upeu.megafarma.app.presentation.bitacora.BitacoraViewModel(get()) }
     viewModel { ReportesViewModel(get()) }
 }
 

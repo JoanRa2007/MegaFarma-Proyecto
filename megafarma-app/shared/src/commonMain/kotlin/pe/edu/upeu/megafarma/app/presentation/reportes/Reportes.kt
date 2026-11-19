@@ -1,5 +1,6 @@
 package pe.edu.upeu.megafarma.app.presentation.reportes
 
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tarjeta
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -100,7 +101,7 @@ fun ReportesScreen(viewModel: ReportesViewModel = koinViewModel()) {
             else -> {
                 estado.resumen?.let { ResumenVentasVista(it) }
                 estado.inventario?.let { inv ->
-                    Card(Modifier.fillMaxWidth()) {
+                    Tarjeta(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Titulo("Inventario valorizado (hoy)")
                             Text("Valor a precio de venta: ${inv.valorTotal.soles()}", fontWeight = FontWeight.Bold)

@@ -1,5 +1,6 @@
 package pe.edu.upeu.megafarma.app.presentation.productos
 
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tarjeta
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -200,7 +201,7 @@ fun ProductoDetalleScreen(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(Modifier.fillMaxWidth()) {
+        Tarjeta(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(producto.nombre, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text("${producto.codigo} · ${producto.categoriaNombre}", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -294,7 +295,7 @@ fun ProductoDetalleScreen(
 
 @Composable
 private fun TarjetaLote(lote: Lote, saleprimero: Boolean, puedeDarDeBaja: Boolean, onBaja: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
+    Tarjeta(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Lote ${lote.numeroLote}", fontWeight = FontWeight.SemiBold)

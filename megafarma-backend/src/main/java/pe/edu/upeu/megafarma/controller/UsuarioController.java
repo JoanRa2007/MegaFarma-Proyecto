@@ -38,8 +38,11 @@ public class UsuarioController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
     private final UsuarioService usuarioService;
+    private final pe.edu.upeu.megafarma.service.AuditoriaService auditoria;
 
-    public UsuarioController(UsuarioService usuarioService) {
+    public UsuarioController(UsuarioService usuarioService,
+            pe.edu.upeu.megafarma.service.AuditoriaService auditoria) {
+        this.auditoria = auditoria;
         // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.usuarioService = usuarioService;
     }
@@ -64,7 +67,9 @@ public class UsuarioController {
     @Operation(summary = "Crear una cuenta de usuario (HU-22)")
     public ResponseEntity<UsuarioResponseDTO> crear(@Valid @RequestBody UsuarioRequestDTO request) {
         // responde HTTP 201 Created con el recurso recien creado
-        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.crear(request));
+        UsuarioResponseDTO creado = usuarioService.crear(request);
+        auditoria.registrar("USUARIO_CREADO", creado.getUsername() + " rol " + creado.getRol(), true);
+        return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
     // @PutMapping: atiende peticiones HTTP PUT (actualizar todo el recurso)
@@ -76,7 +81,10 @@ public class UsuarioController {
             @PathVariable Long id,
             // @Valid: ejecuta las validaciones del DTO; si alguna falla responde 400 sin entrar al metodo
             @Valid @RequestBody UsuarioRequestDTO request) {
-        return ResponseEntity.ok(usuarioService.actualizar(id, request));
+        UsuarioResponseDTO actualizado = usuarioService.actualizar(id, request);
+        auditoria.registrar("USUARIO_ACTUALIZADO", actualizado.getUsername() + " rol " + actualizado.getRol()
+                + (request.getPassword() != null && !request.getPassword().isBlank() ? " (cambio de contraseña)" : ""), true);
+        return ResponseEntity.ok(actualizado);
     }
 
     // @PatchMapping: atiende peticiones HTTP PATCH (cambiar una parte del recurso)
@@ -87,7 +95,9 @@ public class UsuarioController {
             @PathVariable Long id,
             // @RequestParam: toma el valor de la query string: ?nombre=valor
             @RequestParam boolean activo) {
-        return ResponseEntity.ok(usuarioService.cambiarEstado(id, activo));
+        UsuarioResponseDTO usuario = usuarioService.cambiarEstado(id, activo);
+        auditoria.registrar(activo ? "USUARIO_ACTIVADO" : "USUARIO_DESACTIVADO", usuario.getUsername(), true);
+        return ResponseEntity.ok(usuario);
     }
 
     @GetMapping("/roles")
