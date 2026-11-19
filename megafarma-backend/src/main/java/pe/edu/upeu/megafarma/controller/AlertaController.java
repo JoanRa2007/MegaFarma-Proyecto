@@ -27,6 +27,7 @@ import java.util.List;
 @RequestMapping("/api/v1/alertas")
 // @Tag: nombre del grupo con que aparece este controlador en Swagger
 @Tag(name = "6. Alertas", description = "Stock mínimo y vencimientos")
+@org.springframework.validation.annotation.Validated
 public class AlertaController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
@@ -51,14 +52,14 @@ public class AlertaController {
             description = "Si no se envía 'dias' se usa el valor configurado (60).")
     public ResponseEntity<List<LoteResponseDTO>> vencimientos(
             // @RequestParam: toma el valor de la query string: ?nombre=valor
-            @RequestParam(required = false) Integer dias) {
+            @RequestParam(required = false) @jakarta.validation.constraints.Min(0) @jakarta.validation.constraints.Max(730) Integer dias) {
         return ResponseEntity.ok(inventarioService.alertasVencimiento(dias));
     }
 
     @GetMapping("/resumen")
     @Operation(summary = "Contadores de alertas para el panel de inicio (HU-41)")
     public ResponseEntity<ResumenAlertasDTO> resumen(
-            @RequestParam(required = false) Integer dias) {
+            @RequestParam(required = false) @jakarta.validation.constraints.Min(0) @jakarta.validation.constraints.Max(730) Integer dias) {
         return ResponseEntity.ok(inventarioService.resumenAlertas(dias));
     }
 }

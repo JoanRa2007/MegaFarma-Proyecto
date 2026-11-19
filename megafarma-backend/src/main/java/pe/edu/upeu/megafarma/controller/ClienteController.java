@@ -32,12 +32,16 @@ import pe.edu.upeu.megafarma.service.ClienteService;
 @RequestMapping("/api/v1/clientes")
 // @Tag: nombre del grupo con que aparece este controlador en Swagger
 @Tag(name = "4. Clientes", description = "CRUD de clientes")
+@org.springframework.validation.annotation.Validated
 public class ClienteController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
     private final ClienteService clienteService;
+    private final pe.edu.upeu.megafarma.service.AuditoriaService auditoria;
 
-    public ClienteController(ClienteService clienteService) {
+    public ClienteController(ClienteService clienteService,
+            pe.edu.upeu.megafarma.service.AuditoriaService auditoria) {
+        this.auditoria = auditoria;
         // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.clienteService = clienteService;
     }
@@ -48,9 +52,9 @@ public class ClienteController {
     @Operation(summary = "Buscar clientes por nombre o documento")
     public ResponseEntity<PaginaResponseDTO<ClienteResponseDTO>> listar(
             // @RequestParam: toma el valor de la query string: ?nombre=valor
-            @RequestParam(required = false) String q,
-            @RequestParam(defaultValue = "0") int pagina,
-            @RequestParam(defaultValue = "20") int tamanio) {
+            @RequestParam(required = false) @jakarta.validation.constraints.Pattern(regexp = "^(?!.*--)[\\p{L}\\p{N}\\s.,'()/%+-]{0,100}$", message = "La búsqueda contiene caracteres no permitidos (máximo 100 letras, números y . , ' ( ) / % + -, sin --)") String q,
+            @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int pagina,
+            @RequestParam(defaultValue = "20") @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(100) int tamanio) {
         // responde HTTP 200 OK; el objeto se convierte a JSON
         return ResponseEntity.ok(clienteService.listar(q, pagina, tamanio));
     }
@@ -66,7 +70,9 @@ public class ClienteController {
     @Operation(summary = "Registrar un cliente")
     public ResponseEntity<ClienteResponseDTO> crear(@Valid @RequestBody ClienteRequestDTO request) {
         // responde HTTP 201 Created con el recurso recien creado
-        return ResponseEntity.status(HttpStatus.CREATED).body(clienteService.crear(request));
+        ClienteResponseDTO creado = clienteService.crear(request);
+        auditoria.registrar("CLIENTE_CREADO", creado.getTipoDocumento() + " " + creado.getNumeroDocumento(), true);
+        return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
     // @PutMapping: atiende peticiones HTTP PUT (actualizar todo el recurso)

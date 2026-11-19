@@ -49,6 +49,43 @@ public class GlobalExceptionHandler {
         return responder(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
     }
 
+    /*
+     * Parametros de la URL invalidos (por ejemplo una busqueda con caracteres de
+     * inyeccion SQL, tamanio de pagina fuera de rango) -> HTTP 400 con el detalle.
+     */
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponseDTO> handleConstraintViolation(
+            jakarta.validation.ConstraintViolationException ex, HttpServletRequest request) {
+        Map<String, String> errores = new LinkedHashMap<>();
+        ex.getConstraintViolations().forEach(v -> {
+            String ruta = v.getPropertyPath().toString();
+            errores.putIfAbsent(ruta.substring(ruta.lastIndexOf('.') + 1), v.getMessage());
+        });
+        return responder(HttpStatus.BAD_REQUEST,
+                "Parámetros inválidos: " + String.join(", ", errores.keySet()), request, errores);
+    }
+
+    @ExceptionHandler(org.springframework.web.method.annotation.HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponseDTO> handleMethodValidation(
+            org.springframework.web.method.annotation.HandlerMethodValidationException ex, HttpServletRequest request) {
+        Map<String, String> errores = new LinkedHashMap<>();
+        ex.getParameterValidationResults().forEach(r -> errores.putIfAbsent(
+                String.valueOf(r.getMethodParameter().getParameterName()),
+                r.getResolvableErrors().isEmpty() ? "Valor inválido" : r.getResolvableErrors().get(0).getDefaultMessage()));
+        return responder(HttpStatus.BAD_REQUEST,
+                "Parámetros inválidos: " + String.join(", ", errores.keySet()), request, errores);
+    }
+
+    /* Demasiados intentos de inicio de sesion desde la misma IP -> HTTP 429 con Retry-After */
+    @ExceptionHandler(DemasiadosIntentosException.class)
+    public ResponseEntity<ErrorResponseDTO> handleDemasiadosIntentos(
+            DemasiadosIntentosException ex, HttpServletRequest request) {
+        ResponseEntity<ErrorResponseDTO> base = responder(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request, null);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getSegundosParaReintentar()))
+                .body(base.getBody());
+    }
+
     /* Regla de negocio -> HTTP 409 */
     @ExceptionHandler(ReglaNegocioException.class)
     public ResponseEntity<ErrorResponseDTO> handleBusinessRule(

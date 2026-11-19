@@ -2,80 +2,90 @@ package pe.edu.upeu.megafarma.service.impl;
 
 /*
  * PARA ESTUDIAR · CAPA SERVICIO - IMPLEMENTACION (service.impl)
- * Aqui viven las reglas de negocio. El controlador llama al servicio, el servicio
- * valida las reglas, usa los repositorios y devuelve un DTO de respuesta.
+ * Inicio y cierre de sesion con varias capas de proteccion:
+ *  1. Limite de fallos por IP (fuerza bruta) -> HTTP 429.
+ *  2. Contrasenas con BCrypt (Spring Security compara el hash).
+ *  3. Bloqueo de la cuenta tras 5 fallos seguidos (HU-46).
+ *  4. Mensaje unico "Usuario o contrasena incorrectos" (no revela cual fallo).
+ *  5. Todo intento queda en la bitacora de auditoria.
+ *  6. Logout revoca el token (su jti) aunque no haya expirado.
  */
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import pe.edu.upeu.megafarma.dto.auth.LoginRequestDTO;
 import pe.edu.upeu.megafarma.dto.auth.LoginResponseDTO;
 import pe.edu.upeu.megafarma.dto.auth.UsuarioResponseDTO;
 import pe.edu.upeu.megafarma.entity.Usuario;
+import pe.edu.upeu.megafarma.exception.DemasiadosIntentosException;
 import pe.edu.upeu.megafarma.mapper.UsuarioMapper;
 import pe.edu.upeu.megafarma.repository.UsuarioRepository;
 import pe.edu.upeu.megafarma.security.JwtService;
+import pe.edu.upeu.megafarma.security.LimitadorIntentosLogin;
 import pe.edu.upeu.megafarma.security.PermisosPorRol;
+import pe.edu.upeu.megafarma.security.TokensRevocados;
 import pe.edu.upeu.megafarma.security.UsuarioActual;
+import pe.edu.upeu.megafarma.service.AuditoriaService;
 import pe.edu.upeu.megafarma.service.AuthService;
 
-// @Service: Spring crea un unico objeto de esta clase y lo inyecta donde se necesite
 @Service
-// implements: esta clase cumple el contrato (los metodos) de esa interfaz
 public class AuthServiceImpl implements AuthService {
 
-    // logger: escribe mensajes en la consola/archivo de log de la aplicacion
-    private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
-
-    // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
     private final AuthenticationManager authenticationManager;
     private final UsuarioRepository usuarioRepository;
     private final JwtService jwtService;
     private final UsuarioActual usuarioActual;
+    private final LimitadorIntentosLogin limitador;
+    private final TokensRevocados tokensRevocados;
+    private final AuditoriaService auditoria;
     private final int maxIntentosFallidos;
 
     public AuthServiceImpl(AuthenticationManager authenticationManager,
                            UsuarioRepository usuarioRepository,
                            JwtService jwtService,
                            UsuarioActual usuarioActual,
-                           // @Value: inyecta un valor de application.yaml (lo que va tras ':' es el valor por defecto)
+                           LimitadorIntentosLogin limitador,
+                           TokensRevocados tokensRevocados,
+                           AuditoriaService auditoria,
                            @Value("${app.seguridad.max-intentos-fallidos:5}") int maxIntentosFallidos) {
-        // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.authenticationManager = authenticationManager;
         this.usuarioRepository = usuarioRepository;
         this.jwtService = jwtService;
         this.usuarioActual = usuarioActual;
+        this.limitador = limitador;
+        this.tokensRevocados = tokensRevocados;
+        this.auditoria = auditoria;
         this.maxIntentosFallidos = maxIntentosFallidos;
     }
 
     /*
-     * HU-21 Iniciar sesion. Spring Security compara la contrasena con el
-     * hash BCrypt. Si es correcta se devuelve un JWT; si falla se cuenta el
-     * intento (HU-46) y la cuenta se bloquea al llegar al maximo.
-     *
-     * No lleva @Transactional a proposito: el contador de intentos debe
-     * guardarse aunque el metodo termine lanzando la excepcion.
+     * HU-21 Iniciar sesion. No lleva @Transactional a proposito: el contador de
+     * intentos y la auditoria deben guardarse aunque el metodo lance la excepcion.
      */
-    // @Override: este metodo implementa o redefine uno declarado en la interfaz o clase padre
     @Override
-    public LoginResponseDTO login(LoginRequestDTO request) {
+    public LoginResponseDTO login(LoginRequestDTO request, String ip) {
 
         String username = request.getUsername().trim().toLowerCase();
 
+        if (limitador.estaBloqueada(ip)) {
+            long segundos = limitador.segundosParaReintentar(ip);
+            auditoria.registrarDe(username, "LIMITE_INTENTOS", "Demasiados intentos fallidos desde " + ip, false);
+            throw new DemasiadosIntentosException(
+                    "Demasiados intentos fallidos. Espere " + segundos + " segundos e intente de nuevo.", segundos);
+        }
+
         try {
             Authentication autenticacion = authenticationManager.authenticate(
-                    // objeto con el usuario (y su clave o sus permisos) que entiende Spring Security
                     new UsernamePasswordAuthenticationToken(username, request.getPassword()));
 
             UserDetails principal = (UserDetails) autenticacion.getPrincipal();
-            // findBy... devuelve un Optional: si viene vacio se lanza la excepcion indicada
             Usuario usuario = usuarioRepository.findByUsername(username).orElseThrow();
 
             if (usuario.getIntentosFallidos() > 0) {
@@ -84,8 +94,7 @@ public class AuthServiceImpl implements AuthService {
             }
 
             String rol = usuario.getRol().getNombre();
-            // deja registro de la operacion en el log
-            log.info("Inicio de sesión correcto | usuario={} rol={}", username, rol);
+            auditoria.registrarDe(username, "LOGIN_OK", "Rol " + rol, true);
 
             return new LoginResponseDTO(
                     jwtService.generarToken(principal),
@@ -97,15 +106,31 @@ public class AuthServiceImpl implements AuthService {
                     PermisosPorRol.permisos(rol));
 
         } catch (BadCredentialsException ex) {
-            usuarioRepository.findByUsername(username).ifPresent(usuario -> {
+            limitador.registrarFallo(ip);
+            usuarioRepository.findByUsername(username).ifPresentOrElse(usuario -> {
                 usuario.setIntentosFallidos(usuario.getIntentosFallidos() + 1);
                 usuarioRepository.save(usuario);
                 if (usuario.getIntentosFallidos() >= maxIntentosFallidos) {
-                    log.warn("Cuenta bloqueada por intentos fallidos | usuario={}", username);
+                    auditoria.registrarDe(username, "CUENTA_BLOQUEADA",
+                            "Bloqueada tras " + usuario.getIntentosFallidos() + " intentos fallidos", false);
+                } else {
+                    auditoria.registrarDe(username, "LOGIN_FALLIDO", "Contraseña incorrecta", false);
                 }
-            });
+            }, () -> auditoria.registrarDe(username, "LOGIN_FALLIDO", "Usuario inexistente", false));
+            throw ex;
+        } catch (AuthenticationException ex) {
+            // Cuenta bloqueada o desactivada: tambien cuenta como fallo de la IP.
+            limitador.registrarFallo(ip);
+            auditoria.registrarDe(username, "LOGIN_RECHAZADO", ex.getClass().getSimpleName(), false);
             throw ex;
         }
+    }
+
+    @Override
+    public void logout(String token) {
+        Claims claims = jwtService.leerClaims(token);
+        tokensRevocados.revocar(claims.getId(), claims.getExpiration().toInstant());
+        auditoria.registrar("LOGOUT", "Token revocado", true);
     }
 
     @Override

@@ -32,6 +32,7 @@ public class UsuarioRequestDTO {
     /* Obligatoria al crear; al actualizar se deja vacia para no cambiarla. */
     // @Size: limita la cantidad de caracteres (o de elementos)
     @Size(min = 8, max = 72, message = "La contraseña debe tener entre 8 y 72 caracteres")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).*$", message = "La contraseña debe tener al menos una letra y un número")
     private String password;
 
     @NotBlank(message = "El nombre completo es obligatorio")
