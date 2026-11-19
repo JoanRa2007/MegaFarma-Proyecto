@@ -1,12 +1,12 @@
 # Megafarma · Backend
 
-API REST del sistema de ventas e inventario de la botica **Megafarma**. Es el servidor que consume la app móvil (Kotlin Multiplatform + Ktor Client).
+API REST del **sistema de punto de venta (POS)** de la botica **Megafarma**, con inventario por lotes. Es el servidor que consume la app móvil (Kotlin Multiplatform + Ktor Client).
 
 - **Spring Boot 4 · Java 21 · Maven**
 - **Spring Security + JWT** con roles y permisos
 - **Spring Data JPA** sobre **PostgreSQL**, esquema versionado con **Flyway**
 - **Swagger / OpenAPI** para documentar y probar
-- **77 pruebas automáticas** (JUnit 5, Mockito, MockMvc)
+- **86 pruebas automáticas** (JUnit 5, Mockito, MockMvc)
 
 ## Arquitectura
 
@@ -91,6 +91,7 @@ Son solo para desarrollo. En producción se desactivan con `app.datos-demo=false
 | `PermisosPorRolTest` (4) | Unitaria | Matriz de permisos de cada rol |
 | `UtilidadesTest` (6) | Unitaria | Paginación segura y rangos de fechas |
 | `Sprint2VentasTest` (6) | Integración (Sprint 2) | Doble anulación simultánea, misma clave simultánea, ventas simultáneas, cantidad decimal, fechas inválidas y paginación completa |
+| `PuntoDeVentaTest` (9) | Integración (punto de venta) | Pagos mixtos y vuelto, IGV, boleta y factura, correlativos, XML, dashboard, reportes por día/mes/año y alertas por nivel |
 | `ApiIntegrationTest` (21) | Integración (MockMvc + H2) | La API completa de punta a punta: login, 401/403, CRUD, validaciones, flujo de inventario y venta, alertas y reportes |
 | `MegafarmaBackendApplicationTests` (1) | Integración | El contexto arranca y Hibernate valida el esquema de Flyway |
 
@@ -128,6 +129,10 @@ Todas las rutas, salvo el login y el estado, exigen la cabecera `Authorization: 
 | `GET /api/v1/ventas?desde=&hasta=` | HU-11 | Buscar ventas por fecha | Admin, Vendedor |
 | `GET /api/v1/ventas/{id}` | HU-10 | Detalle de una venta | Admin, Vendedor |
 | `POST /api/v1/ventas/{id}/anular` | HU-12 | Anular una venta y devolver el stock | Admin |
+| `GET /api/v1/ventas/{id}/comprobante` | HU-35 | Boleta o factura electrónica de la venta (modo demostración) | Admin, Vendedor |
+| `GET /api/v1/ventas/{id}/comprobante/xml` | HU-35 | XML UBL 2.1 del comprobante | Admin, Vendedor |
+| `GET /api/v1/dashboard?periodo=HOY\|SEMANA\|MES\|ANIO` | HU-17, 19 | Dashboard: indicadores, comparación, gráfico, top 5, categorías y medios de pago | Admin |
+| `GET /api/v1/reportes/resumen?tipo=DIA\|MES\|ANIO&fecha=` | HU-17 | Reporte de ventas del día, mes o año | Admin |
 | `GET /api/v1/reportes/ventas` | HU-17 | Ventas por día y por medio de pago | Admin |
 | `GET /api/v1/reportes/mas-vendidos` | HU-19 | Productos más vendidos | Admin |
 | `GET /api/v1/reportes/inventario` | HU-18 | Inventario valorizado | Admin |
@@ -158,6 +163,13 @@ Todos los errores, incluidos los 401 y 403, tienen la misma forma:
 | 403 | El rol no tiene permiso |
 | 404 | El recurso no existe |
 | 409 | Una regla de negocio lo impide (stock insuficiente, código duplicado, lote vencido) |
+
+## Punto de venta
+
+- **Pagos:** una venta puede pagarse con uno o varios medios (efectivo, tarjeta, Yape, Plin, transferencia). Solo el efectivo puede superar lo que falta: la diferencia es el **vuelto**. Yape, Plin y transferencia exigen el número de operación; la tarjeta, sus últimos 4 dígitos.
+- **IGV:** los precios incluyen IGV 18 %. Cada venta guarda la operación gravada y el IGV.
+- **Comprobantes (modo demostración):** cada venta emite una **boleta (B001)** o una **factura (F001)** con correlativo sin saltos, desglose de IGV, total en letras, XML UBL 2.1, hash SHA-256 y los datos del QR. La factura exige un cliente con RUC y una boleta mayor a S/ 700 debe identificar al cliente. Para emitir de verdad faltaría firmar el XML con un certificado digital y enviarlo a SUNAT o a un OSE/PSE.
+- **Alertas de vencimiento por nivel:** crítico (vencido o en 30 días), medio (31 a 60) y bajo (61 a 90). Los umbrales se configuran en `application.yaml`.
 
 ## Reglas de negocio
 

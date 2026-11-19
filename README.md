@@ -1,10 +1,10 @@
 # Megafarma · Proyecto
 
-Sistema de ventas e inventario de la botica **Megafarma**. Proyecto del curso Desarrollo de Aplicaciones Móviles (UPeU, Ingeniería de Sistemas, ciclo VI).
+**Sistema de punto de venta (POS) de la botica Megafarma**, con control de inventario por lotes como apoyo: caja con pagos mixtos, boleta y factura electrónica (modo demostración), dashboard de ventas, reportes por día, mes y año, y alertas de vencimiento por nivel. Proyecto del curso Desarrollo de Aplicaciones Móviles (UPeU, Ingeniería de Sistemas, ciclo VI).
 
 | Carpeta | Parte | Contenido |
 |---|---|---|
-| [`megafarma-backend/`](megafarma-backend) | Backend | API REST en Spring Boot 4 (Java 21) con JWT, PostgreSQL, Flyway, Swagger y 77 pruebas automáticas |
+| [`megafarma-backend/`](megafarma-backend) | Backend | API REST en Spring Boot 4 (Java 21) con JWT, PostgreSQL, Flyway, Swagger y 86 pruebas automáticas |
 | [`megafarma-app/`](megafarma-app) | Frontend (app + web) | Kotlin Multiplatform + Compose Multiplatform: un solo código que genera la app Android, la página web (Kotlin/Wasm) y la app iOS |
 
 ```

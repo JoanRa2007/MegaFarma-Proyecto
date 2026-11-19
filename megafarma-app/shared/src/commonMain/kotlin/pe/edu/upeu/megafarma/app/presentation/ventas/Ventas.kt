@@ -56,7 +56,13 @@ data class VentasUiState(
     val confirmandoAnulacion: Boolean = false,
     val anulando: Boolean = false,
     val errorAnular: String? = null,
-    val aviso: String? = null
+    val aviso: String? = null,
+    // Comprobante electronico de la venta seleccionada
+    val verComprobante: Boolean = false,
+    val comprobante: pe.edu.upeu.megafarma.app.domain.model.Comprobante? = null,
+    val cargandoComprobante: Boolean = false,
+    val errorComprobante: String? = null,
+    val xml: String? = null
 )
 
 /*
@@ -152,6 +158,29 @@ class VentasViewModel(private val repositorio: VentaRepository) : ViewModel() {
 
     fun cerrarAviso() = _estado.update { it.copy(aviso = null) }
 
+    fun abrirComprobante(venta: Venta) {
+        _estado.update { it.copy(verComprobante = true, comprobante = null, cargandoComprobante = true, errorComprobante = null) }
+        viewModelScope.launch {
+            when (val r = repositorio.comprobante(venta.id)) {
+                is Resultado.Exito -> _estado.update { it.copy(cargandoComprobante = false, comprobante = r.datos) }
+                is Resultado.Error -> _estado.update { it.copy(cargandoComprobante = false, errorComprobante = r.mensaje) }
+            }
+        }
+    }
+
+    fun verXml(venta: Venta) {
+        viewModelScope.launch {
+            when (val r = repositorio.comprobanteXml(venta.id)) {
+                is Resultado.Exito -> _estado.update { it.copy(xml = r.datos) }
+                is Resultado.Error -> _estado.update { it.copy(errorComprobante = r.mensaje) }
+            }
+        }
+    }
+
+    fun cerrarXml() = _estado.update { it.copy(xml = null) }
+
+    fun cerrarComprobante() = _estado.update { it.copy(verComprobante = false, comprobante = null, xml = null) }
+
     /* CA-12-02: primero se pide el motivo; luego una confirmacion explicita. */
     fun pedirConfirmacion(motivo: String) {
         if (motivo.isBlank()) {
@@ -240,8 +269,23 @@ fun VentasScreen(sesion: Sesion, viewModel: VentasViewModel = koinViewModel()) {
         }
     }
 
+    val seleccionada = estado.seleccionada
+    if (estado.verComprobante && seleccionada != null) {
+        pe.edu.upeu.megafarma.app.presentation.comprobante.ComprobanteDialog(
+            comprobante = estado.comprobante,
+            cargando = estado.cargandoComprobante,
+            error = estado.errorComprobante,
+            xml = estado.xml,
+            onVerXml = { viewModel.verXml(seleccionada) },
+            onCerrarXml = viewModel::cerrarXml,
+            onCerrar = viewModel::cerrarComprobante
+        )
+        return
+    }
+
     estado.seleccionada?.let { venta ->
         DetalleVentaDialog(
+            onVerComprobante = if (venta.numeroComprobante != null) ({ viewModel.abrirComprobante(venta) }) else null,
             venta = venta,
             cargando = estado.cargandoDetalle,
             puedeAnular = sesion.puede(Permiso.VENTAS_ANULAR) && !venta.anulada,
@@ -279,6 +323,7 @@ private fun TarjetaVenta(venta: Venta, onClick: () -> Unit) {
 
 @Composable
 private fun DetalleVentaDialog(
+    onVerComprobante: (() -> Unit)?,
     venta: Venta,
     cargando: Boolean,
     puedeAnular: Boolean,
@@ -321,7 +366,19 @@ private fun DetalleVentaDialog(
                 if (cargando) LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text("${venta.fecha.fechaHora()} · vendedor: ${venta.vendedor}")
                 Text("Medio de pago: ${venta.medioPago}")
+                venta.pagos.takeIf { it.size > 1 }?.forEach { p ->
+                    Text("   ${p.medio}: ${p.monto.soles()}" + (p.referencia?.let { " ($it)" } ?: ""),
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                venta.vuelto?.takeIf { it > 0 }?.let { Text("Vuelto: ${it.soles()}") }
                 venta.clienteNombre?.let { Text("Cliente: $it") }
+                venta.numeroComprobante?.let { numero ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${venta.tipoComprobante?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Comprobante"} $numero",
+                            Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                        if (onVerComprobante != null) TextButton(onClick = onVerComprobante) { Text("Ver comprobante") }
+                    }
+                }
                 HorizontalDivider()
                 venta.detalles.forEach { d ->
                     Text("${d.cantidad} x ${d.productoNombre} · ${d.precioUnitario.soles()} c/u · ${d.subtotal.soles()}")
@@ -332,6 +389,7 @@ private fun DetalleVentaDialog(
                     )
                 }
                 HorizontalDivider()
+                venta.subtotal?.let { Text("Op. gravada: ${it.soles()} · IGV 18 %: ${(venta.igv ?: 0.0).soles()}", style = MaterialTheme.typography.bodySmall) }
                 Text("Total: ${venta.total.soles()}", fontWeight = FontWeight.Bold)
                 if (venta.anulada) {
                     Etiqueta("Anulada", ColoresEstado.peligro)

@@ -25,6 +25,8 @@ import pe.edu.upeu.megafarma.entity.Usuario;
 import pe.edu.upeu.megafarma.entity.Venta;
 import pe.edu.upeu.megafarma.enums.EstadoVenta;
 import pe.edu.upeu.megafarma.enums.TipoMovimiento;
+import pe.edu.upeu.megafarma.enums.TipoComprobante;
+import pe.edu.upeu.megafarma.enums.MedioPago;
 import pe.edu.upeu.megafarma.exception.RecursoNoEncontradoException;
 import pe.edu.upeu.megafarma.exception.ReglaNegocioException;
 import pe.edu.upeu.megafarma.mapper.VentaMapper;
@@ -64,13 +66,15 @@ public class VentaServiceImpl implements VentaService {
     private final LoteRepository loteRepository;
     private final MovimientoInventarioRepository movimientoRepository;
     private final UsuarioActual usuarioActual;
+    private final pe.edu.upeu.megafarma.service.ComprobanteService comprobanteService;
 
     public VentaServiceImpl(VentaRepository ventaRepository,
                             ClienteRepository clienteRepository,
                             ProductoRepository productoRepository,
                             LoteRepository loteRepository,
                             MovimientoInventarioRepository movimientoRepository,
-                            UsuarioActual usuarioActual) {
+                            UsuarioActual usuarioActual,
+                            pe.edu.upeu.megafarma.service.ComprobanteService comprobanteService) {
         // el constructor guarda cada dependencia que Spring le entrega al crear el objeto
         this.ventaRepository = ventaRepository;
         this.clienteRepository = clienteRepository;
@@ -78,6 +82,7 @@ public class VentaServiceImpl implements VentaService {
         this.loteRepository = loteRepository;
         this.movimientoRepository = movimientoRepository;
         this.usuarioActual = usuarioActual;
+        this.comprobanteService = comprobanteService;
     }
 
     /*
@@ -217,21 +222,39 @@ public class VentaServiceImpl implements VentaService {
             }
         }
 
-        // PASO 7 · Guardar. save() inserta la venta y, por el cascade, tambien sus detalles.
         venta.setTotal(total);
+
+        // PASO 7 · Desglose del IGV 18 % (los precios incluyen IGV), linea por linea.
+        venta.setSubtotal(venta.getDetalles().stream()
+                .map(d -> pe.edu.upeu.megafarma.util.Igv.valorSinIgv(d.getSubtotal()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        venta.setIgv(total.setScale(2, RoundingMode.HALF_UP).subtract(venta.getSubtotal()));
+
+        // PASO 8 · Pagos: uno o varios (pago mixto); el exceso en efectivo es el vuelto.
+        aplicarPagos(venta, request, total);
+
+        // PASO 9 · Reglas del comprobante: factura con RUC; boleta mayor a S/ 700 con cliente.
+        TipoComprobante tipo = request.getTipoComprobante() == null
+                ? TipoComprobante.BOLETA : request.getTipoComprobante();
+        validarCliente(tipo, cliente, total);
+
+        // PASO 10 · Guardar. save() inserta la venta y, por el cascade, sus detalles y pagos.
 
         Venta guardada = ventaRepository.save(venta);
         // Con el id que asigno la base se arma el numero legible: id 1 -> "V-00000001".
         guardada.setNumero(String.format("V-%08d", guardada.getId()));
 
-        // PASO 8 · Guardar el kardex, enlazando cada movimiento con el numero de la venta.
+        // PASO 11 · Guardar el kardex, enlazando cada movimiento con el numero de la venta.
         movimientos.forEach(m -> m.setReferencia(guardada.getNumero()));
         movimientoRepository.saveAll(movimientos);
+
+        // PASO 12 · Emitir la boleta o factura electronica (modo demostracion).
+        comprobanteService.emitir(guardada, tipo);
 
         log.info("Venta registrada | numero={} total={} vendedor={}",
                 guardada.getNumero(), total, vendedor.getUsername());
 
-        // PASO 9 · Responder: la entidad se convierte en DTO y el controlador la devuelve como JSON.
+        // PASO 13 · Responder: la entidad se convierte en DTO y el controlador la devuelve como JSON.
         return VentaMapper.toResponse(guardada);
     }
 
@@ -315,10 +338,108 @@ public class VentaServiceImpl implements VentaService {
 
         Venta guardada = ventaRepository.save(venta);
         movimientoRepository.saveAll(movimientos);
+        // El comprobante queda ANULADO (en SUNAT se emitiria una nota de credito).
+        comprobanteService.anular(venta.getId());
 
         log.info("Venta anulada | numero={} por={}", venta.getNumero(), usuario.getUsername());
 
         return VentaMapper.toResponse(guardada);
+    }
+
+    /* Medios que exigen numero de operacion (billeteras y transferencias). */
+    private static final java.util.Set<MedioPago> CON_OPERACION =
+            java.util.EnumSet.of(MedioPago.YAPE, MedioPago.PLIN, MedioPago.TRANSFERENCIA);
+
+    /*
+     * Registra las formas de pago y calcula el vuelto.
+     *  - Sin lista de pagos: un solo pago por el total con el medioPago enviado.
+     *  - Con lista: la suma debe cubrir el total. Solo el efectivo puede exceder
+     *    (genera vuelto); tarjeta, billeteras y transferencia no pueden pasar el total.
+     *  - Yape, Plin y transferencia exigen numero de operacion; tarjeta, sus ultimos 4 digitos.
+     */
+    private void aplicarPagos(Venta venta, VentaRequestDTO request, BigDecimal total) {
+        List<pe.edu.upeu.megafarma.dto.venta.PagoRequestDTO> pagos = request.getPagos();
+
+        if (pagos == null || pagos.isEmpty()) {
+            MedioPago medio = request.getMedioPago();
+            if (medio == null || medio == MedioPago.MIXTO) {
+                throw new ReglaNegocioException("Indique el medio de pago");
+            }
+            venta.agregarPago(nuevoPago(medio, total, null));
+            venta.setMedioPago(medio);
+            return;
+        }
+
+        BigDecimal efectivo = BigDecimal.ZERO;
+        BigDecimal otros = BigDecimal.ZERO;
+        for (pe.edu.upeu.megafarma.dto.venta.PagoRequestDTO p : pagos) {
+            String referencia = p.getReferencia() == null ? null : p.getReferencia().trim();
+            if (p.getMedio() == MedioPago.MIXTO) {
+                throw new ReglaNegocioException("MIXTO no es un medio de pago: envíe cada forma de pago por separado");
+            }
+            if (CON_OPERACION.contains(p.getMedio())
+                    && (referencia == null || !referencia.matches("[A-Za-z0-9-]{4,30}"))) {
+                throw new ReglaNegocioException("Ingrese el número de operación del pago con " + p.getMedio().name());
+            }
+            if (p.getMedio() == MedioPago.TARJETA && (referencia == null || !referencia.matches("\\d{4}"))) {
+                throw new ReglaNegocioException("Para el pago con tarjeta ingrese los últimos 4 dígitos");
+            }
+            if (p.getMedio() == MedioPago.EFECTIVO) {
+                efectivo = efectivo.add(p.getMonto());
+            } else {
+                otros = otros.add(p.getMonto());
+            }
+        }
+
+        if (otros.compareTo(total) > 0) {
+            throw new ReglaNegocioException("Los pagos con tarjeta, billetera o transferencia (S/ "
+                    + dinero(otros) + ") superan el total de la venta (S/ " + dinero(total) + ")");
+        }
+        BigDecimal pagado = efectivo.add(otros);
+        if (pagado.compareTo(total) < 0) {
+            throw new ReglaNegocioException("Falta pagar S/ " + dinero(total.subtract(pagado))
+                    + " (total S/ " + dinero(total) + ", pagado S/ " + dinero(pagado) + ")");
+        }
+        BigDecimal vuelto = pagado.subtract(total);
+
+        for (pe.edu.upeu.megafarma.dto.venta.PagoRequestDTO p : pagos) {
+            if (p.getMedio() != MedioPago.EFECTIVO) {
+                venta.agregarPago(nuevoPago(p.getMedio(), p.getMonto(), p.getReferencia().trim()));
+            }
+        }
+        if (efectivo.signum() > 0) {
+            BigDecimal aplicado = efectivo.subtract(vuelto);
+            if (aplicado.signum() > 0) {
+                venta.agregarPago(nuevoPago(MedioPago.EFECTIVO, aplicado, null));
+            }
+            venta.setMontoRecibido(efectivo.setScale(2, RoundingMode.HALF_UP));
+            venta.setVuelto(vuelto.setScale(2, RoundingMode.HALF_UP));
+        }
+
+        long medios = venta.getPagos().stream().map(pe.edu.upeu.megafarma.entity.Pago::getMedio).distinct().count();
+        venta.setMedioPago(medios == 1 ? venta.getPagos().get(0).getMedio() : MedioPago.MIXTO);
+    }
+
+    private static pe.edu.upeu.megafarma.entity.Pago nuevoPago(MedioPago medio, BigDecimal monto, String referencia) {
+        pe.edu.upeu.megafarma.entity.Pago pago = new pe.edu.upeu.megafarma.entity.Pago();
+        pago.setMedio(medio);
+        pago.setMonto(monto.setScale(2, RoundingMode.HALF_UP));
+        pago.setReferencia(referencia);
+        return pago;
+    }
+
+    /* SUNAT: la factura exige RUC; una boleta mayor a S/ 700 debe identificar al cliente. */
+    private static void validarCliente(TipoComprobante tipo, Cliente cliente, BigDecimal total) {
+        if (tipo == TipoComprobante.FACTURA && (cliente == null || !"RUC".equals(cliente.getTipoDocumento()))) {
+            throw new ReglaNegocioException("La factura requiere un cliente con RUC");
+        }
+        if (tipo == TipoComprobante.BOLETA && cliente == null && total.compareTo(new BigDecimal("700")) > 0) {
+            throw new ReglaNegocioException("Las boletas mayores a S/ 700.00 deben identificar al cliente (DNI)");
+        }
+    }
+
+    private static String dinero(BigDecimal monto) {
+        return monto.setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 
     private MovimientoInventario movimiento(Lote lote, TipoMovimiento tipo, int cantidad,

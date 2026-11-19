@@ -24,11 +24,13 @@ import pe.edu.upeu.megafarma.app.presentation.ventas.VentasScreen
 /* Secciones del menu. Cada una exige un permiso; si el rol no lo tiene, no aparece. */
 enum class Destino(val titulo: String, val permiso: String?) {
     INICIO("Inicio", null),
-    PRODUCTOS("Productos y stock", null),
-    NUEVA_VENTA("Nueva venta", Permiso.VENTAS_REGISTRAR),
+    NUEVA_VENTA("Nueva venta (caja)", Permiso.VENTAS_REGISTRAR),
+    DASHBOARD("Dashboard de ventas", Permiso.REPORTES_VER),
     VENTAS("Ventas", Permiso.VENTAS_LEER),
+    PRODUCTOS("Productos y stock", null),
     ALERTAS("Alertas", Permiso.INVENTARIO_LEER),
-    REPORTES("Reportes", Permiso.REPORTES_VER)
+    REPORTES("Reportes", Permiso.REPORTES_VER),
+    USUARIOS("Usuarios", Permiso.USUARIOS_ADMINISTRAR)
 }
 
 /*
@@ -107,6 +109,7 @@ private fun MenuLateral(
     Column(Modifier.fillMaxHeight().verticalScroll(rememberScrollState()).padding(vertical = 16.dp)) {
         Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text("Megafarma", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text("Punto de venta", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             Text(sesion.nombreCompleto, style = MaterialTheme.typography.bodyLarge)
             Text("${sesion.username} · ${sesion.rol}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -181,6 +184,8 @@ private fun Contenido(
                 destino == Destino.VENTAS -> VentasScreen(sesion)
                 destino == Destino.ALERTAS -> AlertasScreen()
                 destino == Destino.REPORTES -> ReportesScreen()
+                destino == Destino.DASHBOARD -> pe.edu.upeu.megafarma.app.presentation.dashboard.DashboardScreen()
+                destino == Destino.USUARIOS -> pe.edu.upeu.megafarma.app.presentation.usuarios.UsuariosScreen()
             }
         }
     }
