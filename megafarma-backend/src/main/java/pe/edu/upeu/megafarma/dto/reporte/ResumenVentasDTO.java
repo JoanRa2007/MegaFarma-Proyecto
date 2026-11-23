@@ -40,4 +40,11 @@ public class ResumenVentasDTO {
     private List<ProductoMasVendidoDTO> topProductos;
     private List<ReporteVentasDTO.Grupo> porCategoria;
     private List<ReporteVentasDTO.Grupo> porMedioPago;
+    /* Comprobantes emitidos en el periodo (ventas vigentes). */
+    private int boletasEmitidas;
+    private int facturasEmitidas;
+    /* Ventas de cada vendedor (cantidad e importe). */
+    private List<ReporteVentasDTO.Grupo> porVendedor;
+    /* Serie del periodo anterior, con los mismos tramos, para comparar en el grafico. */
+    private List<ReporteVentasDTO.Grupo> serieAnterior;
 }
