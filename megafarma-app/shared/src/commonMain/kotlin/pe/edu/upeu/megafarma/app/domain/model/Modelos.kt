@@ -266,7 +266,12 @@ data class ResumenVentas(
     val serie: List<GrupoReporte>,
     val topProductos: List<ProductoVendido>,
     val porCategoria: List<GrupoReporte>,
-    val porMedioPago: List<GrupoReporte>
+    val porMedioPago: List<GrupoReporte>,
+    val boletasEmitidas: Int = 0,
+    val facturasEmitidas: Int = 0,
+    val porVendedor: List<GrupoReporte> = emptyList(),
+    /* Mismos tramos del periodo anterior, para comparar en el grafico. */
+    val serieAnterior: List<GrupoReporte> = emptyList()
 )
 
 data class Usuario(
