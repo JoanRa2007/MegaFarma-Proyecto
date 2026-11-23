@@ -56,6 +56,16 @@ class AuthRepositoryImpl(
         if (sesionManager.token != null) api.logout()
         sesionManager.cerrar()
     }
+
+    override suspend fun perfil() = api.perfil().mapear { it.aDominio() }
+
+    override suspend fun cambiarPassword(actual: String, nueva: String): Resultado<Unit> {
+        val r = api.cambiarPassword(pe.edu.upeu.megafarma.app.data.remote.dto.CambioPasswordDto(actual, nueva))
+        if (r is Resultado.Exito) {
+            sesionManager.sesion.value?.let { sesionManager.iniciar(it.copy(debeCambiarPassword = false)) }
+        }
+        return r
+    }
 }
 
 class ProductoRepositoryImpl(private val api: MegafarmaApi) : ProductoRepository {
@@ -172,13 +182,21 @@ class UsuarioRepositoryImpl(private val api: MegafarmaApi) : pe.edu.upeu.megafar
 
     override suspend fun guardar(id: Long?, datos: pe.edu.upeu.megafarma.app.domain.model.DatosUsuario): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario> {
         val request = pe.edu.upeu.megafarma.app.data.remote.dto.UsuarioRequestDto(
-            datos.username.trim(), datos.password?.ifBlank { null }, datos.nombreCompleto.trim(), datos.rol
+            username = datos.username.trim(),
+            nombres = datos.nombres.trim(),
+            apellidos = datos.apellidos.trim(),
+            dni = datos.dni.trim().ifBlank { null },
+            telefono = datos.telefono.trim().ifBlank { null },
+            correo = datos.correo.trim().ifBlank { null },
+            rol = datos.rol
         )
         val r = if (id == null) api.crearUsuario(request) else api.actualizarUsuario(id, request)
         return r.mapear { it.aDominio() }
     }
 
     override suspend fun cambiarEstado(id: Long, activo: Boolean) = api.cambiarEstadoUsuario(id, activo).mapear { it.aDominio() }
+
+    override suspend fun restablecerPassword(id: Long) = api.restablecerPassword(id).mapear { it.aDominio() }
 
     override suspend fun bitacora(usuario: String, accion: String, pagina: Int) =
         api.auditoria(usuario, accion, pagina).mapear { p ->
