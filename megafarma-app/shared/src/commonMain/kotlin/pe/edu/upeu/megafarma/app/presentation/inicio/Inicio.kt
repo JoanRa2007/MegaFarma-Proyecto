@@ -66,7 +66,7 @@ fun InicioScreen(sesion: Sesion, onIrA: (Destino) -> Unit, viewModel: InicioView
     val estado by viewModel.estado.collectAsState()
     LaunchedEffect(Unit) { viewModel.cargar() }
 
-    val destinos = Destino.entries.filter { it != Destino.INICIO && (it.permiso == null || sesion.puede(it.permiso)) }
+    val destinos = Destino.entries.filter { it != Destino.INICIO && it != Destino.PERFIL && (it.permiso == null || sesion.puede(it.permiso)) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
 
