@@ -47,6 +47,20 @@ public class Usuario {
 
     private String nombreCompleto;
 
+    /* Datos del trabajador (V5). nombreCompleto se arma con nombres + apellidos. */
+    private String nombres;
+
+    private String apellidos;
+
+    private String dni;
+
+    private String telefono;
+
+    private String correo;
+
+    /* TRUE cuando entra con una contrasena temporal: la app le pide cambiarla. */
+    private boolean debeCambiarPassword = false;
+
     private boolean activo = true;
 
     private int intentosFallidos = 0;
