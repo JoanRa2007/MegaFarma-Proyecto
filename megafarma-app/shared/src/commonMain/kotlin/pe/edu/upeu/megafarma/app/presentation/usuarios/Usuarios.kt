@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -24,7 +25,17 @@ import pe.edu.upeu.megafarma.app.core.Resultado
 import pe.edu.upeu.megafarma.app.domain.model.DatosUsuario
 import pe.edu.upeu.megafarma.app.domain.model.Usuario
 import pe.edu.upeu.megafarma.app.domain.repository.UsuarioRepository
+import pe.edu.upeu.megafarma.app.presentation.componentes.ANCHO_CELULAR
 import pe.edu.upeu.megafarma.app.presentation.componentes.Aviso
+import pe.edu.upeu.megafarma.app.presentation.componentes.Avatar
+import pe.edu.upeu.megafarma.app.presentation.componentes.BotonAccion
+import pe.edu.upeu.megafarma.app.presentation.componentes.Celda
+import pe.edu.upeu.megafarma.app.presentation.componentes.Columna
+import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoTabla
+import pe.edu.upeu.megafarma.app.presentation.componentes.FilaTabla
+import pe.edu.upeu.megafarma.app.presentation.componentes.Iconos
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tabla
+import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.componentes.Campo
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
 import pe.edu.upeu.megafarma.app.presentation.componentes.Etiqueta
@@ -47,7 +58,11 @@ data class UsuariosUiState(
     /* null = cerrado; Usuario con id 0 = nuevo */
     val editando: Usuario? = null,
     val guardando: Boolean = false,
-    val errorFormulario: String? = null
+    val errorFormulario: String? = null,
+    /* Texto del buscador: nombre, usuario o rol. */
+    val texto: String = "",
+    /* Cuenta que espera confirmacion para desactivarse. */
+    val porDesactivar: Usuario? = null
 )
 
 /* Administracion de usuarios (HU-22 a HU-24), solo ADMIN. */
@@ -73,6 +88,18 @@ class UsuariosViewModel(private val repositorio: UsuarioRepository) : ViewModel(
     fun cerrarFormulario() = _estado.update { it.copy(editando = null) }
 
     fun cerrarAviso() = _estado.update { it.copy(aviso = null) }
+
+    fun buscar(texto: String) = _estado.update { it.copy(texto = texto) }
+
+    fun pedirDesactivar(usuario: Usuario) = _estado.update { it.copy(porDesactivar = usuario) }
+
+    fun cancelarDesactivar() = _estado.update { it.copy(porDesactivar = null) }
+
+    fun confirmarDesactivar() {
+        val usuario = _estado.value.porDesactivar ?: return
+        _estado.update { it.copy(porDesactivar = null) }
+        cambiarEstado(usuario)
+    }
 
     fun guardar(datos: DatosUsuario) {
         val actual = _estado.value.editando ?: return
@@ -126,34 +153,51 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
     val estado by viewModel.estado.collectAsState()
     LaunchedEffect(Unit) { viewModel.cargar() }
 
+    val q = estado.texto.trim().lowercase()
+    val visibles = estado.usuarios.filter {
+        q.isEmpty() || it.nombreCompleto.lowercase().contains(q) || it.username.lowercase().contains(q) || it.rol.lowercase().contains(q)
+    }
+
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${estado.usuarios.size} usuario(s)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            Button(onClick = viewModel::nuevo) { Text("Nuevo usuario") }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = estado.texto,
+                onValueChange = viewModel::buscar,
+                placeholder = { Text("Buscar por nombre, usuario o rol") },
+                leadingIcon = { Icon(Iconos.Buscar, null, Modifier.size(18.dp)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            Button(onClick = viewModel::nuevo, contentPadding = PaddingValues(horizontal = 14.dp)) {
+                Icon(Iconos.Agregar, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Nuevo")
+            }
         }
         estado.aviso?.let { Aviso(it, estado.avisoEsError, viewModel::cerrarAviso) }
 
         when {
             estado.cargando && estado.usuarios.isEmpty() -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
-            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(estado.usuarios, key = { it.id }) { u ->
-                    Tarjeta(Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(u.nombreCompleto, fontWeight = FontWeight.SemiBold)
-                                Text("${u.username} · ${u.rol}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    when {
-                                        u.bloqueado -> Etiqueta("Bloqueado por intentos", ColoresEstado.peligro)
-                                        u.activo -> Etiqueta("Activo", ColoresEstado.ok)
-                                        else -> Etiqueta("Desactivado", ColoresEstado.neutro)
-                                    }
-                                }
-                            }
-                            TextButton(onClick = { viewModel.editar(u) }) { Text("Editar") }
-                            OutlinedButton(onClick = { viewModel.cambiarEstado(u) }) {
-                                Text(if (!u.activo || u.bloqueado) "Activar" else "Desactivar")
+            visibles.isEmpty() -> Vacio(if (q.isEmpty()) "No hay usuarios registrados" else "Ningún usuario coincide con \"${estado.texto}\"")
+            else -> {
+                Text(
+                    "${visibles.size} de ${estado.usuarios.size} usuario(s)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                BoxWithConstraints(Modifier.weight(1f)) {
+                    val ancho = maxWidth >= ANCHO_CELULAR
+                    Tabla {
+                        EncabezadoTabla(
+                            if (ancho) listOf(Columna("Nombre", 2.4f), Columna("Usuario", 1.3f), Columna("Rol", 1.3f),
+                                Columna("Estado", 1.4f), Columna("Acciones", 0.9f))
+                            else listOf(Columna("Trabajador", 3f), Columna("", 0.9f))
+                        )
+                        LazyColumn {
+                            items(visibles, key = { it.id }) { u ->
+                                FilaUsuario(u, ancho, onEditar = { viewModel.editar(u) },
+                                    onDesactivar = { viewModel.pedirDesactivar(u) }, onActivar = { viewModel.cambiarEstado(u) })
                             }
                         }
                     }
@@ -165,6 +209,64 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
     estado.editando?.let { u ->
         UsuarioFormDialog(u, estado.guardando, estado.errorFormulario, viewModel::guardar, viewModel::cerrarFormulario)
     }
+
+    estado.porDesactivar?.let { u ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelarDesactivar,
+            title = { Text("¿Desactivar la cuenta de ${u.nombreCompleto}?") },
+            text = { Text("No podrá iniciar sesión hasta que la reactive. Sus ventas y registros se conservan.") },
+            confirmButton = {
+                Button(
+                    onClick = viewModel::confirmarDesactivar,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Desactivar") }
+            },
+            dismissButton = { TextButton(onClick = viewModel::cancelarDesactivar) { Text("Cancelar") } }
+        )
+    }
+}
+
+@Composable
+private fun EstadoUsuario(u: Usuario) = when {
+    u.bloqueado -> Etiqueta("Bloqueado", ColoresEstado.peligro, Iconos.Candado)
+    u.activo -> Etiqueta("Activo", ColoresEstado.ok)
+    else -> Etiqueta("Desactivado", ColoresEstado.neutro)
+}
+
+@Composable
+private fun FilaUsuario(u: Usuario, ancho: Boolean, onEditar: () -> Unit, onDesactivar: () -> Unit, onActivar: () -> Unit) {
+    FilaTabla {
+        if (ancho) {
+            Row(Modifier.weight(2.4f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Avatar(u.nombreCompleto, 32)
+                Spacer(Modifier.width(10.dp))
+                Text(u.nombreCompleto, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Celda(u.username, 1.3f, secundario = true)
+            Box(Modifier.weight(1.3f)) { Etiqueta(u.rol, colorRol(u.rol)) }
+            Box(Modifier.weight(1.4f)) { EstadoUsuario(u) }
+        } else {
+            Column(Modifier.weight(3f).padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(u.nombreCompleto, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(u.username, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Etiqueta(u.rol, colorRol(u.rol))
+                    EstadoUsuario(u)
+                }
+            }
+        }
+        Row(Modifier.weight(0.9f), verticalAlignment = Alignment.CenterVertically) {
+            BotonAccion(Iconos.Editar, "Editar", ColoresEstado.alerta, onEditar)
+            if (u.activo && !u.bloqueado) BotonAccion(Iconos.Eliminar, "Desactivar", ColoresEstado.peligro, onDesactivar)
+            else BotonAccion(Iconos.Restaurar, if (u.bloqueado) "Desbloquear" else "Activar", ColoresEstado.ok, onActivar)
+        }
+    }
+}
+
+private fun colorRol(rol: String) = when (rol) {
+    "ADMIN" -> ColoresEstado.info
+    "ALMACENERO" -> ColoresEstado.alerta
+    else -> ColoresEstado.ok
 }
 
 @Composable

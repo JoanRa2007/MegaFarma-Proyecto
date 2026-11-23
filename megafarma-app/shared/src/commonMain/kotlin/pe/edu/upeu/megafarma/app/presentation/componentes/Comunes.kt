@@ -8,6 +8,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,6 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import pe.edu.upeu.megafarma.app.core.fechaCorta
+import pe.edu.upeu.megafarma.app.core.fechaDesdeMillis
+import pe.edu.upeu.megafarma.app.core.millisDesdeFecha
 
 /* Piezas de interfaz reutilizadas por todas las pantallas. */
 
@@ -179,5 +186,73 @@ fun BarraHorizontal(etiqueta: String, fraccion: Float, valor: String) {
             )
         }
         Text(valor, modifier = Modifier.padding(start = 8.dp).width(96.dp), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/*
+ * Campo de fecha con calendario: se toca y se elige el dia, sin escribir "AAAA-MM-DD".
+ * Guarda la fecha en el formato del backend y la muestra como 23/11/2026.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CampoFecha(
+    valor: String,
+    onCambio: (String) -> Unit,
+    etiqueta: String,
+    modifier: Modifier = Modifier,
+    ayuda: String? = null,
+    textoVacio: String = "Elegir fecha"
+) {
+    var abierto by remember { mutableStateOf(false) }
+    Box(modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = if (valor.isBlank()) "" else valor.fechaCorta(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(etiqueta) },
+            placeholder = { Text(textoVacio) },
+            trailingIcon = { Icon(Iconos.Calendario, contentDescription = "Abrir calendario", modifier = Modifier.size(20.dp)) },
+            supportingText = if (ayuda != null) ({ Text(ayuda) }) else null,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        // Capa transparente encima del campo: cualquier toque abre el calendario.
+        Box(Modifier.matchParentSize().padding(top = 8.dp, bottom = if (ayuda != null) 22.dp else 0.dp).clickable { abierto = true })
+    }
+    if (abierto) {
+        val estado = rememberDatePickerState(initialSelectedDateMillis = millisDesdeFecha(valor))
+        DatePickerDialog(
+            onDismissRequest = { abierto = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    estado.selectedDateMillis?.let { onCambio(fechaDesdeMillis(it)) }
+                    abierto = false
+                }) { Text("Aceptar") }
+            },
+            dismissButton = {
+                Row {
+                    if (valor.isNotBlank()) TextButton(onClick = { onCambio(""); abierto = false }) { Text("Borrar") }
+                    TextButton(onClick = { abierto = false }) { Text("Cancelar") }
+                }
+            }
+        ) {
+            DatePicker(state = estado, showModeToggle = false)
+        }
+    }
+}
+
+/* Controles de pagina compactos: caben en una fila tambien en el celular. */
+@Composable
+fun Paginador(pagina: Int, totalPaginas: Int, onAnterior: () -> Unit, onSiguiente: () -> Unit) {
+    if (totalPaginas <= 1) return
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+        OutlinedButton(onClick = onAnterior, enabled = pagina > 0, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("‹ Anterior") }
+        Text(
+            "${pagina + 1} de $totalPaginas",
+            Modifier.padding(horizontal = 16.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1
+        )
+        OutlinedButton(onClick = onSiguiente, enabled = pagina + 1 < totalPaginas, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Siguiente ›") }
     }
 }

@@ -30,6 +30,7 @@ import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
 import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoSeccion
 import pe.edu.upeu.megafarma.app.presentation.componentes.Iconos
 import pe.edu.upeu.megafarma.app.presentation.componentes.Insignia
+import pe.edu.upeu.megafarma.app.presentation.componentes.GrillaTarjetas
 import pe.edu.upeu.megafarma.app.presentation.componentes.Kpi
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Panel
@@ -92,8 +93,8 @@ fun InicioScreen(sesion: Sesion, onIrA: (Destino) -> Unit, viewModel: InicioView
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
             estado.resumen != null -> {
                 val r = estado.resumen!!
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    val m = Modifier.widthIn(min = 220.dp, max = 300.dp)
+                GrillaTarjetas(anchoMinimo = 220.dp) {
+                    val m = Modifier.weight(1f)
                     Kpi("Stock bajo", r.productosBajoMinimo.toString(), Iconos.Inventario,
                         if (r.productosBajoMinimo > 0) ColoresEstado.alerta else ColoresEstado.ok, m,
                         "Productos en su mínimo o debajo", onClick = { onIrA(Destino.ALERTAS) })
@@ -111,9 +112,9 @@ fun InicioScreen(sesion: Sesion, onIrA: (Destino) -> Unit, viewModel: InicioView
         }
 
         EncabezadoSeccion("Accesos rápidos", "Módulos disponibles para tu rol")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        GrillaTarjetas(anchoMinimo = 150.dp) {
             destinos.forEach { d ->
-                Panel(Modifier.widthIn(min = 220.dp, max = 300.dp), onClick = { onIrA(d) }) {
+                Panel(Modifier.weight(1f).fillMaxRowHeight(), onClick = { onIrA(d) }) {
                     Insignia(d.icono(), MaterialTheme.colorScheme.primary, 40)
                     Spacer(Modifier.height(12.dp))
                     Text(d.titulo, fontWeight = FontWeight.SemiBold)

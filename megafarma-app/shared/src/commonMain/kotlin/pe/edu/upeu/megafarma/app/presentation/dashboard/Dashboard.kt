@@ -48,18 +48,22 @@ class DashboardViewModel(private val reportes: ReporteRepository) : ViewModel() 
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DashboardScreen(viewModel: DashboardViewModel = koinViewModel()) {
     val estado by viewModel.estado.collectAsState()
     LaunchedEffect(Unit) { viewModel.cargar() }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            listOf(Periodo.HOY, Periodo.SEMANA, Periodo.MES, Periodo.ANIO).forEach { p ->
-                FilterChip(selected = estado.periodo == p, onClick = { viewModel.cargar(p) }, label = { Text(p.etiqueta) })
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(Periodo.HOY, Periodo.SEMANA, Periodo.MES, Periodo.ANIO).forEach { p ->
+                    FilterChip(selected = estado.periodo == p, onClick = { viewModel.cargar(p) }, label = { Text(p.etiqueta) })
+                }
             }
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { viewModel.cargar() }) { Text("Actualizar") }
+            IconButton(onClick = { viewModel.cargar() }) {
+                Icon(pe.edu.upeu.megafarma.app.presentation.componentes.Iconos.Restaurar, contentDescription = "Actualizar", tint = MaterialTheme.colorScheme.primary)
+            }
         }
         when {
             estado.cargando && estado.resumen == null -> Cargando()

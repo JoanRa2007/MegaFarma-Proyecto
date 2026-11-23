@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /* Componentes con estilo de panel profesional: KPI, tablas, avatar y encabezados de seccion. */
@@ -82,17 +83,60 @@ fun Avatar(nombre: String, tamano: Int = 38) {
     }
 }
 
-/* Titulo de seccion con subtitulo y acciones a la derecha. */
+/*
+ * Titulo de seccion con subtitulo y acciones. En pantallas anchas las acciones van a la
+ * derecha; en el celular van debajo del titulo para que el texto no quede aplastado.
+ */
 @Composable
 fun EncabezadoSeccion(titulo: String, subtitulo: String? = null, acciones: @Composable RowScope.() -> Unit = {}) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(titulo, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            if (subtitulo != null) {
-                Text(subtitulo, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val angosto = maxWidth < ANCHO_CELULAR
+        val textos = @Composable { m: Modifier ->
+            Column(m) {
+                Text(titulo, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                if (subtitulo != null) {
+                    Text(subtitulo, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, content = acciones)
+        if (angosto) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                textos(Modifier.fillMaxWidth())
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically, content = acciones)
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                textos(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, content = acciones)
+            }
+        }
+    }
+}
+
+/* Ancho a partir del cual se considera pantalla de celular. */
+val ANCHO_CELULAR = 600.dp
+
+/*
+ * Grilla de tarjetas que llena el ancho: tantas por fila como quepan con el ancho minimo
+ * (en el celular, dos por fila). Cada tarjeta debe usar Modifier.weight(1f).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun GrillaTarjetas(
+    anchoMinimo: Dp = 160.dp,
+    espacio: Dp = 12.dp,
+    contenido: @Composable FlowRowScope.() -> Unit
+) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val porFila = ((maxWidth + espacio) / (anchoMinimo + espacio)).toInt().coerceAtLeast(1)
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(espacio),
+            verticalArrangement = Arrangement.spacedBy(espacio),
+            maxItemsInEachRow = porFila,
+            content = contenido
+        )
     }
 }
 
@@ -109,7 +153,8 @@ fun EncabezadoTabla(columnas: List<Columna>) {
     ) {
         columnas.forEach { c ->
             Text(c.titulo.uppercase(), Modifier.weight(c.peso), style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
         }
     }
 }

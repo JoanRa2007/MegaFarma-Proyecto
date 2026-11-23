@@ -17,6 +17,7 @@ import pe.edu.upeu.megafarma.app.domain.model.GrupoReporte
 import pe.edu.upeu.megafarma.app.domain.model.ResumenVentas
 import pe.edu.upeu.megafarma.app.presentation.componentes.BarraHorizontal
 import pe.edu.upeu.megafarma.app.presentation.componentes.TarjetaDato
+import pe.edu.upeu.megafarma.app.presentation.componentes.GrillaTarjetas
 import pe.edu.upeu.megafarma.app.presentation.componentes.Titulo
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.tema.ColoresEstado
@@ -33,13 +34,13 @@ fun ResumenVentasVista(r: ResumenVentas) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("${r.titulo} · del ${r.desde} al ${r.hasta}", color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TarjetaDato("Total vendido", r.totalVendido.soles(), ColoresEstado.ok, Modifier.widthIn(min = 180.dp),
+        GrillaTarjetas(anchoMinimo = 150.dp) {
+            TarjetaDato("Total vendido", r.totalVendido.soles(), ColoresEstado.ok, Modifier.weight(1f).fillMaxRowHeight(),
                 detalle = variacionTexto(r.variacionPorcentaje))
-            TarjetaDato("Ventas", r.cantidadVentas.toString(), MaterialTheme.colorScheme.primary, Modifier.widthIn(min = 150.dp))
-            TarjetaDato("Ticket promedio", r.ticketPromedio.soles(), MaterialTheme.colorScheme.secondary, Modifier.widthIn(min = 150.dp))
-            TarjetaDato("Unidades vendidas", r.unidadesVendidas.toString(), MaterialTheme.colorScheme.onSurface, Modifier.widthIn(min = 150.dp))
-            TarjetaDato("Anuladas", r.ventasAnuladas.toString(), ColoresEstado.peligro, Modifier.widthIn(min = 150.dp),
+            TarjetaDato("Ventas", r.cantidadVentas.toString(), MaterialTheme.colorScheme.primary, Modifier.weight(1f).fillMaxRowHeight())
+            TarjetaDato("Ticket promedio", r.ticketPromedio.soles(), MaterialTheme.colorScheme.secondary, Modifier.weight(1f).fillMaxRowHeight())
+            TarjetaDato("Unidades vendidas", r.unidadesVendidas.toString(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).fillMaxRowHeight())
+            TarjetaDato("Anuladas", r.ventasAnuladas.toString(), ColoresEstado.peligro, Modifier.weight(1f).fillMaxRowHeight(),
                 detalle = r.totalAnulado.soles())
         }
 
@@ -57,18 +58,18 @@ fun ResumenVentasVista(r: ResumenVentas) {
             }
         }
 
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TarjetaLista("Top 5 productos", Modifier.widthIn(min = 300.dp, max = 520.dp)) {
+        GrillaTarjetas(anchoMinimo = 300.dp) {
+            TarjetaLista("Top 5 productos", Modifier.weight(1f)) {
                 if (r.topProductos.isEmpty()) Vacio("Sin ventas en el período")
                 val maximo = r.topProductos.maxOfOrNull { it.unidades }?.takeIf { it > 0 } ?: 1L
                 r.topProductos.forEachIndexed { i, p ->
                     BarraHorizontal("${i + 1}. ${p.nombre}", p.unidades.toFloat() / maximo, "${p.unidades} u · ${p.importe.soles()}")
                 }
             }
-            TarjetaLista("Ventas por categoría", Modifier.widthIn(min = 300.dp, max = 520.dp)) {
+            TarjetaLista("Ventas por categoría", Modifier.weight(1f)) {
                 Barras(r.porCategoria)
             }
-            TarjetaLista("Medios de pago", Modifier.widthIn(min = 300.dp, max = 520.dp)) {
+            TarjetaLista("Medios de pago", Modifier.weight(1f)) {
                 Barras(r.porMedioPago)
             }
         }

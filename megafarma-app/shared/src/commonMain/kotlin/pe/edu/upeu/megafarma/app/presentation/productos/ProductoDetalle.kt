@@ -48,6 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import pe.edu.upeu.megafarma.app.presentation.componentes.BotonAccion
 import pe.edu.upeu.megafarma.app.presentation.componentes.Columna
+import pe.edu.upeu.megafarma.app.presentation.componentes.CampoFecha
+import pe.edu.upeu.megafarma.app.presentation.componentes.GrillaTarjetas
 import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoTabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.FilaTabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Iconos
@@ -246,14 +248,14 @@ fun ProductoDetalleScreen(
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargarStock() }
             estado.stock != null -> {
                 val stock = estado.stock!!
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                GrillaTarjetas(anchoMinimo = 150.dp) {
                     TarjetaDato(
                         "Disponible para vender", stock.stockDisponible.toString(),
                         if (stock.bajoMinimo) ColoresEstado.alerta else ColoresEstado.ok,
-                        Modifier.widthIn(min = 170.dp), "Sin lotes vencidos"
+                        Modifier.weight(1f), "Sin lotes vencidos"
                     )
-                    TarjetaDato("Registrado", stock.stockRegistrado.toString(), MaterialTheme.colorScheme.onSurface, Modifier.widthIn(min = 170.dp), "Incluye vencidos sin retirar")
-                    TarjetaDato("Stock mínimo", stock.stockMinimo.toString(), MaterialTheme.colorScheme.onSurface, Modifier.widthIn(min = 170.dp), if (stock.bajoMinimo) "Hay que reponer" else "Nivel correcto")
+                    TarjetaDato("Registrado", stock.stockRegistrado.toString(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), "Incluye vencidos sin retirar")
+                    TarjetaDato("Stock mínimo", stock.stockMinimo.toString(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), if (stock.bajoMinimo) "Hay que reponer" else "Nivel correcto")
                 }
 
                 Titulo("Lotes (ordenados por vencimiento)")
@@ -275,7 +277,7 @@ fun ProductoDetalleScreen(
                     Tabla {
                         EncabezadoTabla(
                             listOf(Columna("Lote", 1.4f), Columna("Vence", 1.8f), Columna("Stock", 0.8f)) +
-                                if (puedeInventario) listOf(Columna("Acciones", 0.7f)) else emptyList()
+                                if (puedeInventario) listOf(Columna("", 0.7f)) else emptyList()
                         )
                         stock.lotes.forEach { lote ->
                             FilaLote(
@@ -393,7 +395,7 @@ private fun EntradaDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Campo(lote, { lote = it }, "Número de lote *")
-                Campo(fecha, { fecha = it }, "Fecha de vencimiento *", ayuda = "Formato AAAA-MM-DD, posterior a hoy")
+                CampoFecha(fecha, { fecha = it }, "Fecha de vencimiento *", ayuda = "Debe ser posterior a hoy")
                 Campo(cantidad, { cantidad = it }, "Cantidad *", numerico = true)
                 Campo(precio, { precio = it }, "Precio de compra (opcional)", numerico = true)
                 Text(
