@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,6 +26,7 @@ import pe.edu.upeu.megafarma.app.presentation.inicio.InicioScreen
 import pe.edu.upeu.megafarma.app.presentation.productos.ProductoDetalleScreen
 import pe.edu.upeu.megafarma.app.presentation.productos.ProductosScreen
 import pe.edu.upeu.megafarma.app.presentation.reportes.ReportesScreen
+import pe.edu.upeu.megafarma.app.presentation.tema.ColoresMarca
 import pe.edu.upeu.megafarma.app.presentation.ventas.NuevaVentaScreen
 import pe.edu.upeu.megafarma.app.presentation.ventas.VentasScreen
 
@@ -88,7 +90,7 @@ fun PantallaPrincipal(
         if (ancho) {
             PermanentNavigationDrawer(
                 drawerContent = {
-                    PermanentDrawerSheet(Modifier.width(272.dp), drawerContainerColor = MaterialTheme.colorScheme.surface) { menu {} }
+                    PermanentDrawerSheet(Modifier.width(272.dp), drawerContainerColor = ColoresMarca.menuFondo) { menu {} }
                 }
             ) { contenido(null) }
         } else {
@@ -96,7 +98,7 @@ fun PantallaPrincipal(
             val scope = rememberCoroutineScope()
             ModalNavigationDrawer(
                 drawerState = estadoMenu,
-                drawerContent = { ModalDrawerSheet(Modifier.width(290.dp)) { menu { scope.launch { estadoMenu.close() } } } }
+                drawerContent = { ModalDrawerSheet(Modifier.width(290.dp), drawerContainerColor = ColoresMarca.menuFondo) { menu { scope.launch { estadoMenu.close() } } } }
             ) { contenido { scope.launch { estadoMenu.open() } } }
         }
     }
@@ -116,18 +118,18 @@ private fun MenuLateral(
         // Marca
         Row(Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary),
+                Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(ColoresMarca.menuSeleccion),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Iconos.Farmacia, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                Icon(Iconos.Farmacia, null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("Megafarma", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Punto de venta", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Megafarma", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Punto de venta", style = MaterialTheme.typography.labelMedium, color = ColoresMarca.menuTextoSuave)
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = ColoresMarca.menuDivisor)
 
         // Navegacion por secciones
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
@@ -139,7 +141,7 @@ private fun MenuLateral(
                         Modifier.padding(start = 28.dp, top = 14.dp, bottom = 6.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = ColoresMarca.menuTextoSuave
                     )
                     delGrupo.forEach { d ->
                         NavigationDrawerItem(
@@ -148,6 +150,14 @@ private fun MenuLateral(
                             selected = d == actual,
                             onClick = { onElegir(d) },
                             shape = RoundedCornerShape(10.dp),
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = ColoresMarca.menuSeleccion,
+                                selectedIconColor = Color.White,
+                                selectedTextColor = Color.White,
+                                unselectedContainerColor = Color.Transparent,
+                                unselectedIconColor = ColoresMarca.menuTexto,
+                                unselectedTextColor = ColoresMarca.menuTexto
+                            ),
                             modifier = Modifier.padding(horizontal = 12.dp).height(44.dp)
                         )
                     }
@@ -156,22 +166,22 @@ private fun MenuLateral(
         }
 
         // Usuario y acciones
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = ColoresMarca.menuDivisor)
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Avatar(sesion.nombreCompleto)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(sesion.nombreCompleto, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${sesion.username} · ${sesion.rol}", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    color = ColoresMarca.menuTextoSuave, maxLines = 1)
             }
             IconButton(onClick = onCambiarTema) {
                 Icon(if (oscuro) Iconos.Sol else Iconos.Luna, contentDescription = if (oscuro) "Modo claro" else "Modo oscuro",
-                    modifier = Modifier.size(20.dp))
+                    tint = ColoresMarca.menuTexto, modifier = Modifier.size(20.dp))
             }
             IconButton(onClick = onCerrarSesion) {
-                Icon(Iconos.Salir, contentDescription = "Cerrar sesión", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                Icon(Iconos.Salir, contentDescription = "Cerrar sesión", tint = Color(0xFFFF8A94), modifier = Modifier.size(20.dp))
             }
         }
     }
