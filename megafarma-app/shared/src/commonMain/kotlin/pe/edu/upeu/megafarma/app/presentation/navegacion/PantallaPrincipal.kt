@@ -121,7 +121,7 @@ private fun MenuLateral(
                 Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(ColoresMarca.menuSeleccion),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Iconos.Farmacia, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(Iconos.Farmacia, null, tint = ColoresMarca.menuSeleccionTexto, modifier = Modifier.size(24.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column {
@@ -152,8 +152,8 @@ private fun MenuLateral(
                             shape = RoundedCornerShape(10.dp),
                             colors = NavigationDrawerItemDefaults.colors(
                                 selectedContainerColor = ColoresMarca.menuSeleccion,
-                                selectedIconColor = Color.White,
-                                selectedTextColor = Color.White,
+                                selectedIconColor = ColoresMarca.menuSeleccionTexto,
+                                selectedTextColor = ColoresMarca.menuSeleccionTexto,
                                 unselectedContainerColor = Color.Transparent,
                                 unselectedIconColor = ColoresMarca.menuTexto,
                                 unselectedTextColor = ColoresMarca.menuTexto
