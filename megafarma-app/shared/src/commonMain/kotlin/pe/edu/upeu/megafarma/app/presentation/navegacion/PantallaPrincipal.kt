@@ -1,6 +1,7 @@
 package pe.edu.upeu.megafarma.app.presentation.navegacion
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,7 +35,8 @@ import pe.edu.upeu.megafarma.app.presentation.ventas.VentasScreen
 enum class Grupo(val titulo: String) {
     OPERACION("Operación"),
     INVENTARIO("Inventario"),
-    GESTION("Gestión")
+    GESTION("Gestión"),
+    CUENTA("Mi cuenta")
 }
 
 /* Pantallas de la app. Cada una exige un permiso; si el rol no lo tiene, no aparece. */
@@ -53,7 +55,8 @@ enum class Destino(
     DASHBOARD("Dashboard", "Indicadores de ventas en tiempo real", Permiso.REPORTES_VER, Grupo.GESTION, { Iconos.Dashboard }),
     REPORTES("Reportes", "Ventas por día, mes y año", Permiso.REPORTES_VER, Grupo.GESTION, { Iconos.Reportes }),
     USUARIOS("Usuarios", "Cuentas, roles y accesos", Permiso.USUARIOS_ADMINISTRAR, Grupo.GESTION, { Iconos.Usuarios }),
-    BITACORA("Seguridad", "Bitácora de auditoría", Permiso.USUARIOS_ADMINISTRAR, Grupo.GESTION, { Iconos.Escudo })
+    BITACORA("Seguridad", "Bitácora de auditoría", Permiso.USUARIOS_ADMINISTRAR, Grupo.GESTION, { Iconos.Escudo }),
+    PERFIL("Mi perfil", "Mis datos y cambio de contraseña", null, Grupo.CUENTA, { Iconos.Persona })
 }
 
 /*
@@ -167,7 +170,10 @@ private fun MenuLateral(
 
         // Usuario y acciones
         HorizontalDivider(color = ColoresMarca.menuDivisor)
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.clickable { onElegir(Destino.PERFIL) }.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Avatar(sesion.nombreCompleto)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
@@ -257,6 +263,7 @@ private fun Contenido(
                 destino == Destino.DASHBOARD -> pe.edu.upeu.megafarma.app.presentation.dashboard.DashboardScreen()
                 destino == Destino.USUARIOS -> pe.edu.upeu.megafarma.app.presentation.usuarios.UsuariosScreen()
                 destino == Destino.BITACORA -> pe.edu.upeu.megafarma.app.presentation.bitacora.BitacoraScreen()
+                destino == Destino.PERFIL -> pe.edu.upeu.megafarma.app.presentation.perfil.PerfilScreen(sesion)
             }
         }
     }
