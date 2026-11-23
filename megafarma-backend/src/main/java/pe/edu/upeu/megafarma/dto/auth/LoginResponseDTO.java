@@ -30,4 +30,6 @@ public class LoginResponseDTO {
     private String nombreCompleto;
     private String rol;
     private List<String> permisos;
+    /* TRUE si entro con una contrasena temporal y debe cambiarla. */
+    private boolean debeCambiarPassword;
 }
