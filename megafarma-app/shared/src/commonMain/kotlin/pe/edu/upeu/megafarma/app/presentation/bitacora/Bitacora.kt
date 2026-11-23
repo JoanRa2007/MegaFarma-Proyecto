@@ -29,6 +29,7 @@ import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoTabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Etiqueta
 import pe.edu.upeu.megafarma.app.presentation.componentes.FilaTabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
+import pe.edu.upeu.megafarma.app.presentation.componentes.Paginador
 import pe.edu.upeu.megafarma.app.presentation.componentes.Panel
 import pe.edu.upeu.megafarma.app.presentation.componentes.Tabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
@@ -99,7 +100,7 @@ fun BitacoraScreen(viewModel: BitacoraViewModel = koinViewModel()) {
     val estado by viewModel.estado.collectAsState()
     LaunchedEffect(Unit) { viewModel.cargar() }
 
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         EncabezadoSeccion(
             "Bitácora de seguridad",
             "${estado.totalElementos} eventos registrados · inmutable desde la API"
@@ -156,12 +157,6 @@ fun BitacoraScreen(viewModel: BitacoraViewModel = koinViewModel()) {
             }
         }
 
-        if (estado.totalPaginas > 1) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = { viewModel.cargar(estado.pagina - 1) }, enabled = estado.pagina > 0) { Text("< Anterior") }
-                Text("Página ${estado.pagina + 1} de ${estado.totalPaginas}", Modifier.weight(1f).padding(horizontal = 12.dp))
-                OutlinedButton(onClick = { viewModel.cargar(estado.pagina + 1) }, enabled = estado.pagina + 1 < estado.totalPaginas) { Text("Siguiente >") }
-            }
-        }
+        Paginador(estado.pagina, estado.totalPaginas, { viewModel.cargar(estado.pagina - 1) }, { viewModel.cargar(estado.pagina + 1) })
     }
 }
