@@ -14,6 +14,14 @@ fun Double.soles(): String {
     return "S/ $signo$entero.$decimales"
 }
 
+/* 1234.5 -> "1234.50": monto para un campo de texto (sin "S/" ni comas). */
+fun Double.montoTexto(): String = soles().removePrefix("S/ ").replace(",", "")
+
+/* Texto "Mostrando 11-20 de 57" para el pie de una tabla paginada. */
+fun rangoMostrado(pagina: Int, tamanio: Int, enPagina: Int, total: Long): String =
+    if (total == 0L) "Sin registros"
+    else "Mostrando ${pagina * tamanio + 1}–${pagina * tamanio + enPagina} de $total"
+
 /* "2026-11-17T09:14:31.64" -> "2026-11-17 09:14" */
 fun String.fechaHora(): String = replace('T', ' ').take(16)
 
