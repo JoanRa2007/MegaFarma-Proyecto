@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.upeu.megafarma.entity.Lote;
@@ -43,6 +44,8 @@ import java.time.LocalDateTime;
 @Component
 // @ConditionalOnProperty: la clase solo se activa si la propiedad tiene ese valor en application.yaml
 @ConditionalOnProperty(name = "app.datos-demo", havingValue = "true")
+// @Order: orden de ejecucion entre los CommandLineRunner (primero estos datos, luego el historial)
+@Order(1)
 // implements: esta clase cumple el contrato (los metodos) de esa interfaz
 public class DatosIniciales implements CommandLineRunner {
 
