@@ -74,7 +74,8 @@ fun ResumenVentasDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Resumen
     periodo, titulo, desde, hasta, agrupacion, totalVendido, cantidadVentas, ticketPromedio, unidadesVendidas,
     ventasAnuladas, totalAnulado, totalPeriodoAnterior, variacionPorcentaje,
     serie.map { it.aDominio() }, topProductos.map { it.aDominio() }, porCategoria.map { it.aDominio() },
-    porMedioPago.map { it.aDominio() }
+    porMedioPago.map { it.aDominio() }, boletasEmitidas, facturasEmitidas,
+    porVendedor.map { it.aDominio() }, serieAnterior.map { it.aDominio() }
 )
 
 fun ClienteDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Cliente(id, tipoDocumento, numeroDocumento, nombre, telefono)
