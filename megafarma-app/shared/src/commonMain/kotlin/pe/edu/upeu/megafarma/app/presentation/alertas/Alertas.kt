@@ -24,6 +24,7 @@ import pe.edu.upeu.megafarma.app.domain.model.StockProducto
 import pe.edu.upeu.megafarma.app.domain.repository.InventarioRepository
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
 import pe.edu.upeu.megafarma.app.presentation.componentes.Etiqueta
+import pe.edu.upeu.megafarma.app.presentation.componentes.Iconos
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.tema.ColoresEstado
@@ -35,6 +36,8 @@ data class AlertasUiState(
     val verVencimientos: Boolean = true,
     /* null = todos los niveles */
     val nivel: String? = null,
+    /* Texto del buscador: filtra por producto, codigo o lote. */
+    val texto: String = "",
     val error: String? = null
 )
 
@@ -63,6 +66,8 @@ class AlertasViewModel(private val inventario: InventarioRepository) : ViewModel
     fun mostrar(vencimientos: Boolean) = _estado.update { it.copy(verVencimientos = vencimientos) }
 
     fun filtrarNivel(nivel: String?) = _estado.update { it.copy(nivel = nivel) }
+
+    fun buscar(texto: String) = _estado.update { it.copy(texto = texto) }
 }
 
 /* Color y texto de cada nivel de urgencia. */
@@ -80,15 +85,26 @@ fun textoNivel(nivel: String?): String = when (nivel) {
     else -> "Sin alerta"
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AlertasScreen(viewModel: AlertasViewModel = koinViewModel()) {
     val estado by viewModel.estado.collectAsState()
     LaunchedEffect(Unit) { viewModel.cargar() }
 
     val conteo = estado.vencimientos.groupingBy { it.nivelAlerta }.eachCount()
+    val q = estado.texto.trim().lowercase()
+    fun coincide(vararg campos: String?): Boolean = q.isEmpty() || campos.any { it?.lowercase()?.contains(q) == true }
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = estado.texto,
+            onValueChange = viewModel::buscar,
+            placeholder = { Text(if (estado.verVencimientos) "Buscar por producto o lote" else "Buscar por producto o código") },
+            leadingIcon = { Icon(Iconos.Buscar, null, Modifier.size(18.dp)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp)
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             FilterChip(
                 selected = estado.verVencimientos,
                 onClick = { viewModel.mostrar(true) },
@@ -101,7 +117,7 @@ fun AlertasScreen(viewModel: AlertasViewModel = koinViewModel()) {
             )
         }
         if (estado.verVencimientos) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 FilterChip(selected = estado.nivel == null, onClick = { viewModel.filtrarNivel(null) }, label = { Text("Todos") })
                 listOf("CRITICO", "MEDIO", "BAJO").forEach { n ->
                     FilterChip(
@@ -122,9 +138,11 @@ fun AlertasScreen(viewModel: AlertasViewModel = koinViewModel()) {
             estado.cargando -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
             !estado.verVencimientos -> {
+                val lista = estado.stockMinimo.filter { coincide(it.nombre, it.codigo) }
                 if (estado.stockMinimo.isEmpty()) Vacio("Ningún producto está en su stock mínimo")
+                else if (lista.isEmpty()) Vacio("Ningún producto coincide con \"${estado.texto}\"")
                 else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(estado.stockMinimo, key = { it.productoId }) { s ->
+                    items(lista, key = { it.productoId }) { s ->
                         Tarjeta(Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
@@ -141,8 +159,10 @@ fun AlertasScreen(viewModel: AlertasViewModel = koinViewModel()) {
                 }
             }
             else -> {
-                val lista = estado.vencimientos.filter { estado.nivel == null || it.nivelAlerta == estado.nivel }
-                if (lista.isEmpty()) Vacio("No hay lotes en ese nivel")
+                val lista = estado.vencimientos.filter {
+                    (estado.nivel == null || it.nivelAlerta == estado.nivel) && coincide(it.productoNombre, it.numeroLote, it.productoCodigo)
+                }
+                if (lista.isEmpty()) Vacio(if (q.isEmpty()) "No hay lotes en ese nivel" else "Ningún lote coincide con \"${estado.texto}\"")
                 else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(lista, key = { it.id }) { l ->
                         Tarjeta(Modifier.fillMaxWidth()) {
