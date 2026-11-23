@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -70,18 +71,44 @@ fun Vacio(texto: String) {
     }
 }
 
-/* Etiqueta pequena de color (por ejemplo "Vencido", "Stock bajo"). */
+/* Etiqueta pequena de color con borde (por ejemplo "Vencido", "vence en 9 dias"). */
 @Composable
-fun Etiqueta(texto: String, color: Color) {
+fun Etiqueta(texto: String, color: Color, icono: ImageVector? = null) {
     Row(
         Modifier
-            .background(color.copy(alpha = 0.12f), RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 3.dp),
+            .background(color.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+            .border(1.dp, color.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(6.dp).background(color, RoundedCornerShape(50)))
-        Spacer(Modifier.width(6.dp))
+        if (icono != null) {
+            Icon(icono, null, tint = color, modifier = Modifier.size(12.dp))
+            Spacer(Modifier.width(4.dp))
+        }
+        Text(texto, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+    }
+}
+
+/* Recuadro con un valor corto (stock, cantidades) centrado, como en las tablas de inventario. */
+@Composable
+fun Pastilla(texto: String, color: Color) {
+    Box(
+        Modifier
+            .widthIn(min = 32.dp)
+            .background(color.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
         Text(texto, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/* Boton de icono pequeno para las acciones de una fila (editar, eliminar...). */
+@Composable
+fun BotonAccion(icono: ImageVector, descripcion: String, color: Color, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(32.dp)) {
+        Icon(icono, contentDescription = descripcion, tint = color, modifier = Modifier.size(18.dp))
     }
 }
 
