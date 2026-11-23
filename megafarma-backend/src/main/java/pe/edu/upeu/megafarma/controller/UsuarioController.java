@@ -100,6 +100,16 @@ public class UsuarioController {
         return ResponseEntity.ok(usuario);
     }
 
+    @PostMapping("/usuarios/{id}/restablecer-password")
+    @Operation(summary = "Restablecer la contraseña de un trabajador",
+            description = "Genera una contraseña temporal (se muestra una sola vez), quita el bloqueo "
+                    + "y obliga al trabajador a cambiarla al entrar.")
+    public ResponseEntity<UsuarioResponseDTO> restablecerPassword(@PathVariable Long id) {
+        UsuarioResponseDTO usuario = usuarioService.restablecerPassword(id);
+        auditoria.registrar("PASSWORD_RESTABLECIDA", usuario.getUsername(), true);
+        return ResponseEntity.ok(usuario);
+    }
+
     @GetMapping("/roles")
     @Operation(summary = "Listar roles con sus permisos")
     public ResponseEntity<List<RolResponseDTO>> roles() {
