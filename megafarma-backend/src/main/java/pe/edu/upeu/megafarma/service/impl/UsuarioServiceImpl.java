@@ -70,33 +70,47 @@ public class UsuarioServiceImpl implements UsuarioService {
         return toResponse(obtener(id));
     }
 
-    /* HU-22 Crear una cuenta de usuario. */
+    /*
+     * HU-22 Crear una cuenta de usuario. Si no llega contrasena, el sistema genera
+     * una temporal: se devuelve una sola vez y el trabajador debe cambiarla al entrar.
+     */
     @Override
     @Transactional
     public UsuarioResponseDTO crear(UsuarioRequestDTO request) {
 
         String username = request.getUsername().trim().toLowerCase();
 
-        if (request.getPassword() == null || request.getPassword().isBlank()) {
-            // regla de negocio incumplida -> el cliente recibe HTTP 409 con este mensaje
-            throw new ReglaNegocioException("La contraseña es obligatoria al crear un usuario");
-        }
         if (usuarioRepository.existsByUsername(username)) {
+            // regla de negocio incumplida -> el cliente recibe HTTP 409 con este mensaje
             throw new ReglaNegocioException("Ya existe un usuario con el nombre '" + username + "'");
+        }
+        String dni = textoONulo(request.getDni());
+        if (dni != null && usuarioRepository.existsByDni(dni)) {
+            throw new ReglaNegocioException("Ya existe un usuario con el DNI " + dni);
         }
 
         Usuario usuario = new Usuario();
         usuario.setUsername(username);
-        // BCrypt convierte la contrasena en un hash irreversible antes de guardarla
-        usuario.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        usuario.setNombreCompleto(request.getNombreCompleto().trim());
+        aplicarDatos(usuario, request);
         usuario.setRol(obtenerRol(request.getRol()));
         usuario.setActivo(true);
 
-        return toResponse(usuarioRepository.save(usuario));
+        String temporal = null;
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            temporal = generarPasswordTemporal();
+            // BCrypt convierte la contrasena en un hash irreversible antes de guardarla
+            usuario.setPasswordHash(passwordEncoder.encode(temporal));
+            usuario.setDebeCambiarPassword(true);
+        } else {
+            usuario.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        }
+
+        UsuarioResponseDTO respuesta = toResponse(usuarioRepository.save(usuario));
+        respuesta.setPasswordTemporal(temporal);
+        return respuesta;
     }
 
-    /* HU-23 Asignar rol. La contrasena solo cambia si llega una nueva. */
+    /* HU-23 Asignar rol y datos. La contrasena solo cambia si llega una nueva. */
     @Override
     @Transactional
     public UsuarioResponseDTO actualizar(Long id, UsuarioRequestDTO request) {
@@ -108,6 +122,10 @@ public class UsuarioServiceImpl implements UsuarioService {
                 && usuarioRepository.existsByUsername(username)) {
             throw new ReglaNegocioException("Ya existe un usuario con el nombre '" + username + "'");
         }
+        String dni = textoONulo(request.getDni());
+        if (dni != null && usuarioRepository.existsByDniAndIdNot(dni, id)) {
+            throw new ReglaNegocioException("Ya existe un usuario con el DNI " + dni);
+        }
 
         Rol rol = obtenerRol(request.getRol());
         boolean esElMismo = usuario.getId().equals(usuarioActual.obtener().getId());
@@ -116,13 +134,36 @@ public class UsuarioServiceImpl implements UsuarioService {
         }
 
         usuario.setUsername(username);
-        usuario.setNombreCompleto(request.getNombreCompleto().trim());
+        aplicarDatos(usuario, request);
         usuario.setRol(rol);
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             usuario.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
         return toResponse(usuarioRepository.save(usuario));
+    }
+
+    /*
+     * Recuperar contrasena: el admin genera una clave temporal para el trabajador.
+     * Tambien quita el bloqueo por intentos fallidos. El trabajador la cambia al entrar.
+     */
+    @Override
+    @Transactional
+    public UsuarioResponseDTO restablecerPassword(Long id) {
+
+        Usuario usuario = obtener(id);
+        if (usuario.getId().equals(usuarioActual.obtener().getId())) {
+            throw new ReglaNegocioException("Para cambiar su propia contraseña use Mi perfil");
+        }
+
+        String temporal = generarPasswordTemporal();
+        usuario.setPasswordHash(passwordEncoder.encode(temporal));
+        usuario.setDebeCambiarPassword(true);
+        usuario.setIntentosFallidos(0);
+
+        UsuarioResponseDTO respuesta = toResponse(usuarioRepository.save(usuario));
+        respuesta.setPasswordTemporal(temporal);
+        return respuesta;
     }
 
     /*
@@ -167,6 +208,54 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .orElseThrow(() -> new ReglaNegocioException(
                         "El rol '" + nombre + "' no existe. Use ADMIN, VENDEDOR o ALMACENERO"));
     }
+
+    /* Copia nombres, apellidos, DNI, telefono y correo; arma el nombre completo. */
+    private void aplicarDatos(Usuario usuario, UsuarioRequestDTO request) {
+        String nombres = textoONulo(request.getNombres());
+        String apellidos = textoONulo(request.getApellidos());
+        String nombreCompleto;
+        if (nombres != null && apellidos != null) {
+            nombreCompleto = nombres + " " + apellidos;
+        } else if (textoONulo(request.getNombreCompleto()) != null) {
+            nombreCompleto = request.getNombreCompleto().trim();
+        } else {
+            throw new ReglaNegocioException("Ingrese los nombres y apellidos del trabajador");
+        }
+        usuario.setNombres(nombres);
+        usuario.setApellidos(apellidos);
+        usuario.setNombreCompleto(nombreCompleto);
+        usuario.setDni(textoONulo(request.getDni()));
+        usuario.setTelefono(textoONulo(request.getTelefono()));
+        String correo = textoONulo(request.getCorreo());
+        usuario.setCorreo(correo == null ? null : correo.toLowerCase());
+    }
+
+    private static String textoONulo(String texto) {
+        return texto == null || texto.isBlank() ? null : texto.trim();
+    }
+
+    /* 10 caracteres sin letras confusas (0/O, 1/l/I), con al menos una letra y un numero. */
+    private static String generarPasswordTemporal() {
+        String letras = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
+        String numeros = "23456789";
+        String todos = letras + numeros;
+        StringBuilder clave = new StringBuilder();
+        clave.append(letras.charAt(ALEATORIO.nextInt(letras.length())));
+        clave.append(numeros.charAt(ALEATORIO.nextInt(numeros.length())));
+        while (clave.length() < 10) {
+            clave.append(todos.charAt(ALEATORIO.nextInt(todos.length())));
+        }
+        // mezcla para que la letra y el numero no queden siempre al inicio
+        for (int i = clave.length() - 1; i > 0; i--) {
+            int j = ALEATORIO.nextInt(i + 1);
+            char c = clave.charAt(i);
+            clave.setCharAt(i, clave.charAt(j));
+            clave.setCharAt(j, c);
+        }
+        return clave.toString();
+    }
+
+    private static final java.security.SecureRandom ALEATORIO = new java.security.SecureRandom();
 
     private UsuarioResponseDTO toResponse(Usuario usuario) {
         return UsuarioMapper.toResponse(usuario, maxIntentosFallidos);

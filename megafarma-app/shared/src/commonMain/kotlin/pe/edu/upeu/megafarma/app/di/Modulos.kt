@@ -79,6 +79,7 @@ val moduloPresentacion = module {
     viewModel { AlertasViewModel(get()) }
     viewModel { pe.edu.upeu.megafarma.app.presentation.bitacora.BitacoraViewModel(get()) }
     viewModel { ReportesViewModel(get()) }
+    viewModel { pe.edu.upeu.megafarma.app.presentation.perfil.PerfilViewModel(get()) }
 }
 
 fun initKoin(config: KoinAppDeclaration = {}) = startKoin {

@@ -25,5 +25,7 @@ public interface UsuarioService {
 
     UsuarioResponseDTO cambiarEstado(Long id, boolean activo);
 
+    UsuarioResponseDTO restablecerPassword(Long id);
+
     List<RolResponseDTO> roles();
 }

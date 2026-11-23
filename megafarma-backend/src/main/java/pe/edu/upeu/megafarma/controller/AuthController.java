@@ -13,10 +13,12 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import pe.edu.upeu.megafarma.dto.auth.CambioPasswordRequestDTO;
 import pe.edu.upeu.megafarma.dto.auth.LoginRequestDTO;
 import pe.edu.upeu.megafarma.dto.auth.LoginResponseDTO;
 import pe.edu.upeu.megafarma.dto.auth.UsuarioResponseDTO;
@@ -47,6 +49,14 @@ public class AuthController {
     @Operation(summary = "Cerrar sesión: el token queda revocado aunque no haya expirado")
     public ResponseEntity<Void> logout(@RequestHeader("Authorization") String cabecera) {
         authService.logout(cabecera.substring("Bearer ".length()).trim());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/password")
+    @Operation(summary = "Cambiar la propia contraseña",
+            description = "Pide la contraseña actual. Quita la marca de contraseña temporal.")
+    public ResponseEntity<Void> cambiarPassword(@Valid @RequestBody CambioPasswordRequestDTO request) {
+        authService.cambiarPassword(request.getActual(), request.getNueva());
         return ResponseEntity.noContent().build();
     }
 

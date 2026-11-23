@@ -10,7 +10,9 @@ data class Sesion(
     val username: String,
     val nombreCompleto: String,
     val rol: String,
-    val permisos: List<String>
+    val permisos: List<String>,
+    /* Entro con una contrasena temporal: debe cambiarla antes de usar el sistema. */
+    val debeCambiarPassword: Boolean = false
 ) {
     fun puede(permiso: String): Boolean = permiso in permisos
 }
@@ -273,13 +275,32 @@ data class Usuario(
     val nombreCompleto: String,
     val rol: String,
     val activo: Boolean,
-    val bloqueado: Boolean
+    val bloqueado: Boolean,
+    val nombres: String? = null,
+    val apellidos: String? = null,
+    val dni: String? = null,
+    val telefono: String? = null,
+    val correo: String? = null,
+    val debeCambiarPassword: Boolean = false,
+    /* Solo llega al crear la cuenta o al restablecer la contrasena. */
+    val passwordTemporal: String? = null
 )
 
 data class Rol(val nombre: String, val descripcion: String?, val permisos: List<String>)
 
-/* Datos para crear o editar un usuario (password vacio = no cambiar). */
-data class DatosUsuario(val username: String, val password: String?, val nombreCompleto: String, val rol: String)
+/*
+ * Datos para crear o editar un trabajador. La contrasena no va aqui: al crear la
+ * genera el sistema y cada usuario la cambia desde Mi perfil.
+ */
+data class DatosUsuario(
+    val username: String,
+    val nombres: String,
+    val apellidos: String,
+    val dni: String,
+    val telefono: String,
+    val correo: String,
+    val rol: String
+)
 
 /* Evento de la bitacora de seguridad (auditoria). */
 data class RegistroAuditoria(

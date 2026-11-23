@@ -17,4 +17,6 @@ public interface AuthService {
     void logout(String token);
 
     UsuarioResponseDTO perfil();
+
+    void cambiarPassword(String actual, String nueva);
 }
