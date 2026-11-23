@@ -30,6 +30,8 @@ import pe.edu.upeu.megafarma.app.domain.model.Venta
 import pe.edu.upeu.megafarma.app.domain.repository.VentaRepository
 import pe.edu.upeu.megafarma.app.presentation.componentes.Aviso
 import pe.edu.upeu.megafarma.app.presentation.componentes.Campo
+import pe.edu.upeu.megafarma.app.presentation.componentes.CampoFecha
+import pe.edu.upeu.megafarma.app.presentation.componentes.Paginador
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
 import pe.edu.upeu.megafarma.app.presentation.componentes.Etiqueta
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
@@ -223,12 +225,11 @@ fun VentasScreen(sesion: Sesion, viewModel: VentasViewModel = koinViewModel()) {
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
 
         // ---------- Filtros por fecha (HU-11) ----------
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Campo(estado.desde, viewModel::cambiarDesde, "Desde (AAAA-MM-DD)", Modifier.widthIn(min = 170.dp, max = 220.dp))
-            Campo(estado.hasta, viewModel::cambiarHasta, "Hasta (AAAA-MM-DD)", Modifier.widthIn(min = 170.dp, max = 220.dp))
+        Row(Modifier.widthIn(max = 560.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CampoFecha(estado.desde, viewModel::cambiarDesde, "Desde", Modifier.weight(1f))
+            CampoFecha(estado.hasta, viewModel::cambiarHasta, "Hasta", Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = viewModel::buscar) { Text("Buscar") }
             OutlinedButton(onClick = viewModel::limpiar) { Text("Limpiar") }
         }
@@ -254,20 +255,7 @@ fun VentasScreen(sesion: Sesion, viewModel: VentasViewModel = koinViewModel()) {
         }
 
         // ---------- Paginas (CA-11-05) ----------
-        if (estado.totalPaginas > 1) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = viewModel::paginaAnterior, enabled = estado.pagina > 0) { Text("< Anterior") }
-                Text(
-                    "Página ${estado.pagina + 1} de ${estado.totalPaginas}",
-                    Modifier.weight(1f).padding(horizontal = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                OutlinedButton(
-                    onClick = viewModel::paginaSiguiente,
-                    enabled = estado.pagina + 1 < estado.totalPaginas
-                ) { Text("Siguiente >") }
-            }
-        }
+        Paginador(estado.pagina, estado.totalPaginas, viewModel::paginaAnterior, viewModel::paginaSiguiente)
     }
 
     val seleccionada = estado.seleccionada
