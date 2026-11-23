@@ -7,6 +7,7 @@ package pe.edu.upeu.megafarma.dto.auth;
  * Se usan en lugar de las entidades para no exponer la base de datos.
  */
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -35,9 +36,25 @@ public class UsuarioRequestDTO {
     @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).*$", message = "La contraseña debe tener al menos una letra y un número")
     private String password;
 
-    @NotBlank(message = "El nombre completo es obligatorio")
+    /* Opcional si llegan nombres y apellidos (se arma con ellos). */
     @Size(max = 120, message = "El nombre completo admite hasta 120 caracteres")
     private String nombreCompleto;
+
+    @Size(max = 60, message = "Los nombres admiten hasta 60 caracteres")
+    private String nombres;
+
+    @Size(max = 60, message = "Los apellidos admiten hasta 60 caracteres")
+    private String apellidos;
+
+    @Pattern(regexp = "^$|^\\d{8}$", message = "El DNI debe tener 8 dígitos")
+    private String dni;
+
+    @Pattern(regexp = "^$|^9\\d{8}$", message = "El teléfono debe tener 9 dígitos y empezar con 9")
+    private String telefono;
+
+    @Email(message = "El correo no tiene un formato válido")
+    @Size(max = 120, message = "El correo admite hasta 120 caracteres")
+    private String correo;
 
     @NotBlank(message = "El rol es obligatorio")
     private String rol;
