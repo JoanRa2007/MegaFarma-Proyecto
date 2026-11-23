@@ -47,6 +47,9 @@ import pe.edu.upeu.megafarma.app.data.remote.dto.VentaRequestDto
  * Cada metodo devuelve Resultado: Exito con el JSON ya convertido, o Error con
  * el mensaje que envio el servidor (por ejemplo "Stock insuficiente...").
  */
+/* Eventos por pagina de la bitacora de seguridad. */
+const val TAMANIO_BITACORA = 10
+
 class MegafarmaApi(
     private val client: HttpClient,
     private val sesion: SesionManager
@@ -200,13 +203,13 @@ class MegafarmaApi(
     /* Genera una contrasena temporal para el trabajador (recuperar contrasena). */
     suspend fun restablecerPassword(id: Long): Resultado<UsuarioDto> = llamar { post(url("/usuarios/$id/restablecer-password")) }
 
-    /* Bitacora de seguridad (solo ADMIN). */
+    /* Bitacora de seguridad (solo ADMIN): 10 eventos por pagina. */
     suspend fun auditoria(usuario: String, accion: String, pagina: Int): Resultado<PaginaDto<pe.edu.upeu.megafarma.app.data.remote.dto.AuditoriaDto>> = llamar {
         get(url("/auditoria")) {
             if (usuario.isNotBlank()) parameter("usuario", usuario)
             if (accion.isNotBlank()) parameter("accion", accion)
             parameter("pagina", pagina)
-            parameter("tamanio", 50)
+            parameter("tamanio", TAMANIO_BITACORA)
         }
     }
 
