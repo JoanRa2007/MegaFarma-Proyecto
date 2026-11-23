@@ -25,10 +25,18 @@ data class ProductosUiState(
     val categorias: List<Categoria> = emptyList(),
     val guardando: Boolean = false,
     val errorFormulario: String? = null,
-    val aviso: String? = null
+    val aviso: String? = null,
+    val avisoEsError: Boolean = false,
+    /* Producto que se edita desde la tabla; null cuando el formulario es para uno nuevo. */
+    val editando: Producto? = null,
+    /* Producto que espera confirmacion para desactivarse. */
+    val porDesactivar: Producto? = null
 )
 
-/* Listado y busqueda de productos (HU-03) y registro de productos nuevos (HU-01). */
+/*
+ * Listado y busqueda de productos (HU-03), registro (HU-01), edicion (HU-02)
+ * y desactivacion o reactivacion (HU-04) desde la misma tabla.
+ */
 class ProductosViewModel(private val repositorio: ProductoRepository) : ViewModel() {
 
     private val _estado = MutableStateFlow(ProductosUiState())
@@ -67,8 +75,12 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
         }
     }
 
-    fun abrirFormulario() {
-        _estado.update { it.copy(formularioAbierto = true, errorFormulario = null) }
+    fun abrirFormulario() = abrirFormularioPara(null)
+
+    fun abrirEditar(producto: Producto) = abrirFormularioPara(producto)
+
+    private fun abrirFormularioPara(producto: Producto?) {
+        _estado.update { it.copy(formularioAbierto = true, editando = producto, errorFormulario = null) }
         if (_estado.value.categorias.isEmpty()) {
             viewModelScope.launch {
                 when (val r = repositorio.categorias()) {
@@ -79,19 +91,53 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
         }
     }
 
-    fun cerrarFormulario() = _estado.update { it.copy(formularioAbierto = false) }
+    fun cerrarFormulario() = _estado.update { it.copy(formularioAbierto = false, editando = null) }
 
     fun guardar(datos: DatosProducto) {
+        val editando = _estado.value.editando
         _estado.update { it.copy(guardando = true, errorFormulario = null) }
         viewModelScope.launch {
-            when (val r = repositorio.guardar(null, datos)) {
+            when (val r = repositorio.guardar(editando?.id, datos)) {
                 is Resultado.Exito -> {
+                    val texto = if (editando == null) "Producto ${r.datos.codigo} registrado correctamente"
+                    else "Producto ${r.datos.codigo} actualizado"
                     _estado.update {
-                        it.copy(guardando = false, formularioAbierto = false, aviso = "Producto ${r.datos.codigo} registrado correctamente")
+                        it.copy(guardando = false, formularioAbierto = false, editando = null, aviso = texto, avisoEsError = false)
                     }
                     buscarAhora()
                 }
                 is Resultado.Error -> _estado.update { it.copy(guardando = false, errorFormulario = r.mensaje) }
+            }
+        }
+    }
+
+    /* Pide confirmacion antes de desactivar (no se borra: deja de venderse). */
+    fun pedirDesactivar(producto: Producto) = _estado.update { it.copy(porDesactivar = producto) }
+
+    fun cancelarDesactivar() = _estado.update { it.copy(porDesactivar = null) }
+
+    fun confirmarDesactivar() {
+        val producto = _estado.value.porDesactivar ?: return
+        _estado.update { it.copy(porDesactivar = null) }
+        viewModelScope.launch {
+            when (val r = repositorio.desactivar(producto.id)) {
+                is Resultado.Exito -> {
+                    _estado.update { it.copy(aviso = "Producto ${producto.codigo} desactivado: ya no se vende ni recibe mercadería", avisoEsError = false) }
+                    buscarAhora()
+                }
+                is Resultado.Error -> _estado.update { it.copy(aviso = r.mensaje, avisoEsError = true) }
+            }
+        }
+    }
+
+    fun reactivar(producto: Producto) {
+        viewModelScope.launch {
+            when (val r = repositorio.activar(producto.id)) {
+                is Resultado.Exito -> {
+                    _estado.update { it.copy(aviso = "Producto ${producto.codigo} reactivado", avisoEsError = false) }
+                    buscarAhora()
+                }
+                is Resultado.Error -> _estado.update { it.copy(aviso = r.mensaje, avisoEsError = true) }
             }
         }
     }
