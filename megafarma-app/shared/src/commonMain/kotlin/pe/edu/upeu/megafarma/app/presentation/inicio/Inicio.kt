@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import pe.edu.upeu.megafarma.app.presentation.tema.ColoresMarca
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -71,7 +72,7 @@ fun InicioScreen(sesion: Sesion, onIrA: (Destino) -> Unit, viewModel: InicioView
         // Bienvenida
         Box(
             Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large)
-                .background(Brush.horizontalGradient(listOf(Color(0xFF0E7C66), Color(0xFF0B5A73))))
+                .background(Brush.horizontalGradient(ColoresMarca.degradado))
                 .padding(28.dp)
         ) {
             Column {
