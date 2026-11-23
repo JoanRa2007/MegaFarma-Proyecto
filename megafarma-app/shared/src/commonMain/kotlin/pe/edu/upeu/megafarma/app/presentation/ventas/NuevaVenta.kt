@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import pe.edu.upeu.megafarma.app.core.Resultado
+import pe.edu.upeu.megafarma.app.core.montoTexto
 import pe.edu.upeu.megafarma.app.core.nuevaClave
 import pe.edu.upeu.megafarma.app.core.soles
 import pe.edu.upeu.megafarma.app.domain.model.Cliente
@@ -85,6 +86,22 @@ data class NuevaVentaUiState(
     val pagado: Double get() = pagosAEnviar.sumOf { it.monto }
     val falta: Double get() = (total - pagado).coerceAtLeast(0.0)
     val vuelto: Double get() = (pagado - total).coerceAtLeast(0.0)
+
+    /* Medios que aun no se usan: cada medio aparece una sola vez en el pago mixto. */
+    val mediosLibres: List<MedioPago> get() = MedioPago.entries.filter { m -> pagos.none { it.medio == m } }
+
+    /* Lo que falta segun los montos escritos (un monto vacio cuenta como cero). */
+    val faltaEscrita: Double
+        get() = (total - pagos.sumOf { it.monto.replace(',', '.').toDoubleOrNull() ?: 0.0 }).coerceAtLeast(0.0)
+
+    /* Se puede sumar otro medio si hay productos, queda algo por pagar y quedan medios libres. */
+    val puedeAgregarPago: Boolean get() = carrito.isNotEmpty() && faltaEscrita > 0.004 && mediosLibres.isNotEmpty()
+
+    /* Solo el efectivo puede pasar el total (genera vuelto); los demas no. */
+    val excesoSinEfectivo: Boolean
+        get() = pagosAEnviar.filter { it.medio != MedioPago.EFECTIVO }.sumOf { it.monto } > total + 0.004
+
+    val listoParaCobrar: Boolean get() = carrito.isNotEmpty() && falta <= 0.004 && !excesoSinEfectivo
 }
 
 /*
@@ -199,8 +216,21 @@ class NuevaVentaViewModel(
     }
 
     // ---------- Pagos ----------
-    fun agregarPago() = _estado.update {
-        it.copy(pagos = it.pagos + PagoEditable(siguientePago++, MedioPago.YAPE), error = null)
+    /*
+     * Pago mixto: agrega UNA fila con un medio que todavia no se usa y el monto que falta.
+     * Si ya no falta nada o no quedan medios, no hace nada (antes se agregaban filas sin limite).
+     */
+    fun agregarPago() = _estado.update { e ->
+        if (!e.puedeAgregarPago) return@update e
+        // La fila nueva ya trae lo que falta pagar; el cajero solo ajusta si hace falta.
+        val restante = e.faltaEscrita
+        // Lo mas comun para completar un pago: Yape, luego Plin, tarjeta, transferencia y efectivo.
+        val preferencia = listOf(MedioPago.YAPE, MedioPago.PLIN, MedioPago.TARJETA, MedioPago.TRANSFERENCIA, MedioPago.EFECTIVO)
+        val medio = preferencia.first { it in e.mediosLibres }
+        e.copy(
+            pagos = e.pagos + PagoEditable(siguientePago++, medio, restante.montoTexto()),
+            error = null
+        )
     }
 
     fun quitarPago(id: Int) = _estado.update { e ->
@@ -209,6 +239,14 @@ class NuevaVentaViewModel(
 
     fun cambiarPago(id: Int, cambio: (PagoEditable) -> PagoEditable) = _estado.update { e ->
         e.copy(pagos = e.pagos.map { if (it.id == id) cambio(it) else it }, error = null)
+    }
+
+    /* Solo numeros con hasta 2 decimales en el monto. */
+    fun cambiarMonto(id: Int, texto: String) {
+        val limpio = texto.replace(',', '.').filter { it.isDigit() || it == '.' }
+        val partes = limpio.split('.')
+        val valido = partes.size <= 2 && (partes.getOrNull(1)?.length ?: 0) <= 2 && limpio.length <= 9
+        if (valido) cambiarPago(id) { it.copy(monto = limpio) }
     }
 
     // ---------- Registro ----------
@@ -399,26 +437,25 @@ private fun LazyListScope.seccionVenta(estado: NuevaVentaUiState, viewModel: Nue
     item { HorizontalDivider() }
 
     // ---------- Pagos ----------
-    item {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Titulo("Pago", Modifier.weight(1f))
-            TextButton(onClick = viewModel::agregarPago) { Text("+ Otro medio (pago mixto)") }
-        }
-    }
+    item { Titulo("Pago") }
     items(estado.pagos, key = { "pago-${it.id}" }) { pago ->
-        FilaPago(pago, unico = estado.pagos.size == 1, viewModel)
+        FilaPago(pago, unico = estado.pagos.size == 1, estado.mediosLibres, viewModel)
     }
     item {
-        Column {
-            Text("Pagado: ${estado.pagado.soles()}", style = MaterialTheme.typography.bodyMedium)
-            if (estado.falta > 0.004 && estado.carrito.isNotEmpty()) {
-                Text("Falta: ${estado.falta.soles()}", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
-            }
-            if (estado.vuelto > 0.004) {
-                Text("Vuelto: ${estado.vuelto.soles()}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium)
-            }
+        // Un medio por fila y solo mientras falte pagar: no se pueden repetir medios.
+        OutlinedButton(onClick = viewModel::agregarPago, enabled = estado.puedeAgregarPago, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                when {
+                    estado.carrito.isEmpty() -> "Pago mixto: agregue productos primero"
+                    estado.mediosLibres.isEmpty() -> "Ya se usaron todos los medios de pago"
+                    estado.faltaEscrita <= 0.004 -> "El total ya está cubierto"
+                    else -> "+ Pagar lo que falta con otro medio"
+                }
+            )
         }
+    }
+    if (estado.carrito.isNotEmpty()) {
+        item { ResumenPago(estado) }
     }
 
     estado.error?.let { mensaje ->
@@ -434,50 +471,113 @@ private fun LazyListScope.seccionVenta(estado: NuevaVentaUiState, viewModel: Nue
     item {
         Button(
             onClick = viewModel::registrar,
-            enabled = estado.carrito.isNotEmpty() && !estado.registrando,
+            enabled = estado.listoParaCobrar && !estado.registrando,
             modifier = Modifier.fillMaxWidth().height(48.dp)
         ) {
-            Text(if (estado.registrando) "Registrando…" else "Cobrar y emitir ${estado.tipoComprobante.etiqueta.lowercase()}")
+            Text(
+                when {
+                    estado.registrando -> "Registrando…"
+                    estado.carrito.isEmpty() -> "Agregue productos para cobrar"
+                    estado.falta > 0.004 -> "Falta pagar ${estado.falta.soles()}"
+                    else -> "Cobrar ${estado.total.soles()} y emitir ${estado.tipoComprobante.etiqueta.lowercase()}"
+                }
+            )
+        }
+    }
+}
+
+/* Total, pagado y lo que falta o el vuelto, siempre a la vista antes de cobrar. */
+@Composable
+private fun ResumenPago(estado: NuevaVentaUiState) {
+    Tarjeta(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            FilaMonto("Total", estado.total.soles())
+            FilaMonto("Pagado", estado.pagado.soles())
+            when {
+                estado.excesoSinEfectivo -> Text(
+                    "Tarjeta, billeteras y transferencia no pueden pasar el total: solo el efectivo da vuelto.",
+                    color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall
+                )
+                estado.falta > 0.004 -> FilaMonto("Falta pagar", estado.falta.soles(), MaterialTheme.colorScheme.error, destacado = true)
+                estado.vuelto > 0.004 -> FilaMonto("Vuelto", estado.vuelto.soles(), MaterialTheme.colorScheme.primary, destacado = true)
+                else -> FilaMonto("Pago exacto", "✓", MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
 
 @Composable
-private fun FilaPago(pago: PagoEditable, unico: Boolean, viewModel: NuevaVentaViewModel) {
+private fun FilaMonto(etiqueta: String, valor: String, color: androidx.compose.ui.graphics.Color? = null, destacado: Boolean = false) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(etiqueta, Modifier.weight(1f), color = color ?: MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = if (destacado) FontWeight.SemiBold else FontWeight.Normal)
+        Text(valor, color = color ?: MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (destacado) FontWeight.Bold else FontWeight.SemiBold,
+            style = if (destacado) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/*
+ * Una forma de pago. En el celular el medio y el monto van uno debajo del otro para que
+ * no se aplasten; el menu solo ofrece los medios que aun no se usan en esta venta.
+ */
+@Composable
+private fun FilaPago(pago: PagoEditable, unico: Boolean, libres: List<MedioPago>, viewModel: NuevaVentaViewModel) {
     var menu by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box {
-                OutlinedButton(onClick = { menu = true }) { Text(pago.medio.etiqueta) }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    MedioPago.entries.forEach { m ->
-                        DropdownMenuItem(text = { Text(m.etiqueta) }, onClick = {
-                            viewModel.cambiarPago(pago.id) { it.copy(medio = m, referencia = "") }
-                            menu = false
-                        })
-                    }
+    val opciones = listOf(pago.medio) + libres
+    val selector = @Composable {
+        Box {
+            OutlinedButton(onClick = { menu = true }) { Text(pago.medio.etiqueta + "  ▾") }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                opciones.forEach { m ->
+                    DropdownMenuItem(text = { Text(m.etiqueta) }, onClick = {
+                        if (m != pago.medio) viewModel.cambiarPago(pago.id) { it.copy(medio = m, referencia = "") }
+                        menu = false
+                    })
                 }
             }
-            Campo(
-                pago.monto,
-                { v -> viewModel.cambiarPago(pago.id) { it.copy(monto = v) } },
-                if (pago.medio == MedioPago.EFECTIVO) "Efectivo recibido" else "Monto",
-                Modifier.weight(1f),
-                numerico = true,
-                ayuda = if (unico && pago.medio == MedioPago.EFECTIVO) "Vacío = monto exacto" else null
-            )
-            if (!unico) TextButton(onClick = { viewModel.quitarPago(pago.id) }) { Text("Quitar") }
         }
-        when (pago.medio) {
-            MedioPago.YAPE, MedioPago.PLIN, MedioPago.TRANSFERENCIA -> Campo(
-                pago.referencia, { v -> viewModel.cambiarPago(pago.id) { it.copy(referencia = v) } },
-                "N.° de operación de ${pago.medio.etiqueta}"
-            )
-            MedioPago.TARJETA -> Campo(
-                pago.referencia, { v -> viewModel.cambiarPago(pago.id) { it.copy(referencia = v.filter { c -> c.isDigit() }.take(4)) } },
-                "Últimos 4 dígitos de la tarjeta", numerico = true
-            )
-            MedioPago.EFECTIVO -> Unit
+    }
+    val monto = @Composable { m: Modifier ->
+        Campo(
+            pago.monto,
+            { v -> viewModel.cambiarMonto(pago.id, v) },
+            if (pago.medio == MedioPago.EFECTIVO) "Efectivo recibido" else "Monto",
+            m,
+            numerico = true,
+            ayuda = if (unico && pago.medio == MedioPago.EFECTIVO) "Vacío = monto exacto" else null
+        )
+    }
+    Tarjeta(Modifier.fillMaxWidth()) {
+        BoxWithConstraints(Modifier.padding(12.dp)) {
+            val angosto = maxWidth < 380.dp
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (angosto) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        selector()
+                        Spacer(Modifier.weight(1f))
+                        if (!unico) TextButton(onClick = { viewModel.quitarPago(pago.id) }) { Text("Quitar") }
+                    }
+                    monto(Modifier)
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        selector()
+                        monto(Modifier.weight(1f))
+                        if (!unico) TextButton(onClick = { viewModel.quitarPago(pago.id) }) { Text("Quitar") }
+                    }
+                }
+                when (pago.medio) {
+                    MedioPago.YAPE, MedioPago.PLIN, MedioPago.TRANSFERENCIA -> Campo(
+                        pago.referencia, { v -> viewModel.cambiarPago(pago.id) { it.copy(referencia = v.filter { c -> c.isLetterOrDigit() || c == '-' }.take(30)) } },
+                        "N.° de operación de ${pago.medio.etiqueta}"
+                    )
+                    MedioPago.TARJETA -> Campo(
+                        pago.referencia, { v -> viewModel.cambiarPago(pago.id) { it.copy(referencia = v.filter { c -> c.isDigit() }.take(4)) } },
+                        "Últimos 4 dígitos de la tarjeta", numerico = true
+                    )
+                    MedioPago.EFECTIVO -> Unit
+                }
+            }
         }
     }
 }
