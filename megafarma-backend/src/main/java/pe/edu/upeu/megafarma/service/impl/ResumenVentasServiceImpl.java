@@ -6,7 +6,8 @@ package pe.edu.upeu.megafarma.service.impl;
  *  - total vendido, numero de ventas, ticket promedio y unidades;
  *  - comparacion con el periodo anterior (variacion %);
  *  - serie para el grafico: por hora (un dia), por dia (semana o mes) o por mes (año);
- *  - top 5 de productos, ventas por categoria y por medio de pago.
+ *  - top 5 de productos, ventas por categoria, por medio de pago y por vendedor;
+ *  - boletas y facturas emitidas, y la serie del periodo anterior para comparar.
  * Solo cuentan las ventas REGISTRADAS; las anuladas se informan aparte.
  */
 
@@ -21,6 +22,7 @@ import pe.edu.upeu.megafarma.entity.Producto;
 import pe.edu.upeu.megafarma.entity.Venta;
 import pe.edu.upeu.megafarma.enums.EstadoVenta;
 import pe.edu.upeu.megafarma.enums.Periodo;
+import pe.edu.upeu.megafarma.enums.TipoComprobante;
 import pe.edu.upeu.megafarma.exception.SolicitudInvalidaException;
 import pe.edu.upeu.megafarma.repository.VentaRepository;
 import pe.edu.upeu.megafarma.service.ResumenVentasService;
@@ -105,9 +107,10 @@ public class ResumenVentasServiceImpl implements ResumenVentasService {
                 : total.divide(BigDecimal.valueOf(cantidad), 2, RoundingMode.HALF_UP);
         long unidades = vigentes.stream().flatMap(v -> v.getDetalles().stream()).mapToLong(DetalleVenta::getCantidad).sum();
 
-        BigDecimal totalAnterior = sumar(ventaRepository
+        List<Venta> anteriores = ventaRepository
                 .todasPorRango(desdeAnterior.atStartOfDay(), hastaAnterior.plusDays(1).atStartOfDay())
-                .stream().filter(v -> v.getEstado() == EstadoVenta.REGISTRADA).toList());
+                .stream().filter(v -> v.getEstado() == EstadoVenta.REGISTRADA).toList();
+        BigDecimal totalAnterior = sumar(anteriores);
         Double variacion = totalAnterior.signum() == 0 ? null
                 : total.subtract(totalAnterior).multiply(BigDecimal.valueOf(100))
                 .divide(totalAnterior, 1, RoundingMode.HALF_UP).doubleValue();
@@ -120,7 +123,26 @@ public class ResumenVentasServiceImpl implements ResumenVentasService {
                 serie(vigentes, desde, hasta, agrupacion),
                 topProductos(vigentes),
                 porCategoria(vigentes),
-                porMedioPago(vigentes));
+                porMedioPago(vigentes),
+                contarComprobantes(vigentes, TipoComprobante.BOLETA),
+                contarComprobantes(vigentes, TipoComprobante.FACTURA),
+                porVendedor(vigentes),
+                serie(anteriores, desdeAnterior, hastaAnterior, agrupacion));
+    }
+
+    private static int contarComprobantes(List<Venta> ventas, TipoComprobante tipo) {
+        return (int) ventas.stream().filter(v -> v.getTipoComprobante() == tipo).count();
+    }
+
+    /* Cantidad de ventas e importe de cada vendedor, de mayor a menor. */
+    private List<ReporteVentasDTO.Grupo> porVendedor(List<Venta> ventas) {
+        Map<String, ReporteVentasDTO.Grupo> grupos = new LinkedHashMap<>();
+        for (Venta v : ventas) {
+            String nombre = v.getUsuario().getNombreCompleto() == null
+                    ? v.getUsuario().getUsername() : v.getUsuario().getNombreCompleto();
+            sumarEn(grupos.computeIfAbsent(nombre, this::grupo), v);
+        }
+        return ordenarPorTotal(grupos);
     }
 
     /* Serie del grafico con todos los tramos del periodo (los vacios en cero). */

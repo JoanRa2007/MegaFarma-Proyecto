@@ -260,7 +260,7 @@ private fun Contenido(
                 destino == Destino.VENTAS -> VentasScreen(sesion)
                 destino == Destino.ALERTAS -> AlertasScreen()
                 destino == Destino.REPORTES -> ReportesScreen()
-                destino == Destino.DASHBOARD -> pe.edu.upeu.megafarma.app.presentation.dashboard.DashboardScreen()
+                destino == Destino.DASHBOARD -> pe.edu.upeu.megafarma.app.presentation.dashboard.DashboardScreen(onIrA)
                 destino == Destino.USUARIOS -> pe.edu.upeu.megafarma.app.presentation.usuarios.UsuariosScreen()
                 destino == Destino.BITACORA -> pe.edu.upeu.megafarma.app.presentation.bitacora.BitacoraScreen()
                 destino == Destino.PERFIL -> pe.edu.upeu.megafarma.app.presentation.perfil.PerfilScreen(sesion)

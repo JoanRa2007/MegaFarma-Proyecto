@@ -35,6 +35,9 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
     // Optional: caja que puede traer un valor o venir vacia; evita trabajar con null
     Optional<Venta> findByClaveIdempotencia(String claveIdempotencia);
 
+    /* true si ya hay ventas cuya clave empieza asi (historial de demostracion ya cargado). */
+    boolean existsByClaveIdempotenciaStartingWith(String prefijo);
+
     /* Ventas de un rango de fechas: desde (inclusive) hasta (exclusive). */
     // @Query: consulta escrita a mano en JPQL (se consulta sobre entidades, no sobre tablas)
     @Query("SELECT v FROM Venta v WHERE v.fecha >= :desde AND v.fecha < :hasta")

@@ -10,6 +10,11 @@ spring:
       # El esquema lo crea Flyway (db/migration); Hibernate solo valida.
       ddl-auto: validate
     open-in-view: false
+    properties:
+      hibernate:
+        # Carga las relaciones LAZY en grupos (un SELECT por cada 100) y no una por una:
+        # el dashboard y los reportes recorren cientos de ventas con sus detalles.
+        default_batch_fetch_size: 100
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -69,3 +74,7 @@ app:
     direccion: Av. Los Olivos 123, Lima
   # Crea usuarios de prueba y lotes de demostracion si la base esta vacia.
   datos-demo: true
+  # Historial de ventas de demostracion (ultimos meses) para ver el dashboard y los
+  # reportes con datos. Se activa con la variable de entorno APP_HISTORIAL_DEMO=true
+  # y se carga una sola vez.
+  historial-demo: false

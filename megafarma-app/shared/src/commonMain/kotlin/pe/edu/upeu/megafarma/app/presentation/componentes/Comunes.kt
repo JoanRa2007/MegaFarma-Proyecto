@@ -243,16 +243,22 @@ fun CampoFecha(
 
 /* Controles de pagina compactos: caben en una fila tambien en el celular. */
 @Composable
-fun Paginador(pagina: Int, totalPaginas: Int, onAnterior: () -> Unit, onSiguiente: () -> Unit) {
-    if (totalPaginas <= 1) return
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-        OutlinedButton(onClick = onAnterior, enabled = pagina > 0, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("‹ Anterior") }
-        Text(
-            "${pagina + 1} de $totalPaginas",
-            Modifier.padding(horizontal = 16.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1
-        )
-        OutlinedButton(onClick = onSiguiente, enabled = pagina + 1 < totalPaginas, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Siguiente ›") }
+fun Paginador(pagina: Int, totalPaginas: Int, onAnterior: () -> Unit, onSiguiente: () -> Unit, detalle: String? = null) {
+    // Siempre visible: con una sola pagina se ve "1 de 1" y los botones quedan deshabilitados.
+    val paginas = totalPaginas.coerceAtLeast(1)
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = onAnterior, enabled = pagina > 0, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("‹ Anterior") }
+            Text(
+                "${pagina + 1} de $paginas",
+                Modifier.padding(horizontal = 16.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1
+            )
+            OutlinedButton(onClick = onSiguiente, enabled = pagina + 1 < paginas, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Siguiente ›") }
+        }
+        if (detalle != null) {
+            Text(detalle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

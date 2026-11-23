@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import pe.edu.upeu.megafarma.app.core.Resultado
 import pe.edu.upeu.megafarma.app.core.esFechaValida
+import pe.edu.upeu.megafarma.app.core.fechaCorta
 import pe.edu.upeu.megafarma.app.core.soles
 import pe.edu.upeu.megafarma.app.domain.model.Periodo
 import pe.edu.upeu.megafarma.app.domain.model.ReporteInventario
@@ -27,6 +28,7 @@ import pe.edu.upeu.megafarma.app.domain.model.ResumenVentas
 import pe.edu.upeu.megafarma.app.domain.repository.ReporteRepository
 import pe.edu.upeu.megafarma.app.presentation.componentes.CampoFecha
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
+import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoSeccion
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Titulo
 
@@ -82,9 +84,16 @@ fun ReportesScreen(viewModel: ReportesViewModel = koinViewModel()) {
     LaunchedEffect(Unit) { viewModel.cargar() }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        EncabezadoSeccion(
+            "Reportes",
+            estado.resumen?.let { "${it.titulo} · del ${it.desde.fechaCorta()} al ${it.hasta.fechaCorta()}" }
+                ?: "Análisis de ventas por día, mes o año"
+        ) {
+            if (estado.cargando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(Periodo.DIA, Periodo.MES, Periodo.ANIO).forEach { t ->
-                FilterChip(selected = estado.tipo == t, onClick = { viewModel.elegirTipo(t) }, label = { Text("Reporte por ${t.etiqueta.lowercase()}") })
+                FilterChip(selected = estado.tipo == t, onClick = { viewModel.elegirTipo(t) }, label = { Text("Por ${t.etiqueta.lowercase()}") })
             }
         }
         CampoFecha(
@@ -103,19 +112,7 @@ fun ReportesScreen(viewModel: ReportesViewModel = koinViewModel()) {
         when {
             estado.cargando && estado.resumen == null -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
-            else -> {
-                estado.resumen?.let { ResumenVentasVista(it) }
-                estado.inventario?.let { inv ->
-                    Tarjeta(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Titulo("Inventario valorizado (hoy)")
-                            Text("Valor a precio de venta: ${inv.valorTotal.soles()}", fontWeight = FontWeight.Bold)
-                            Text("Unidades disponibles: ${inv.unidadesTotales}")
-                            Text("Productos con stock: ${inv.productosConStock}")
-                        }
-                    }
-                }
-            }
+            else -> estado.resumen?.let { ResumenVentasVista(it, estado.inventario) }
         }
     }
 }

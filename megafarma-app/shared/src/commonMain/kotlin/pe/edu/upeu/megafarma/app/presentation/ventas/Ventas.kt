@@ -23,6 +23,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import pe.edu.upeu.megafarma.app.core.Resultado
 import pe.edu.upeu.megafarma.app.core.esFechaValida
 import pe.edu.upeu.megafarma.app.core.fechaHora
+import pe.edu.upeu.megafarma.app.core.rangoMostrado
 import pe.edu.upeu.megafarma.app.core.soles
 import pe.edu.upeu.megafarma.app.domain.model.Permiso
 import pe.edu.upeu.megafarma.app.domain.model.Sesion
@@ -33,13 +34,22 @@ import pe.edu.upeu.megafarma.app.presentation.componentes.Campo
 import pe.edu.upeu.megafarma.app.presentation.componentes.CampoFecha
 import pe.edu.upeu.megafarma.app.presentation.componentes.Paginador
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
+import pe.edu.upeu.megafarma.app.presentation.componentes.ANCHO_CELULAR
+import pe.edu.upeu.megafarma.app.presentation.componentes.BotonAccion
+import pe.edu.upeu.megafarma.app.presentation.componentes.Celda
+import pe.edu.upeu.megafarma.app.presentation.componentes.Columna
+import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoSeccion
+import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoTabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Etiqueta
+import pe.edu.upeu.megafarma.app.presentation.componentes.FilaTabla
+import pe.edu.upeu.megafarma.app.presentation.componentes.Iconos
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.tema.ColoresEstado
 
 /* Tamano de pagina de la busqueda de ventas. */
-private const val TAMANIO_PAGINA = 20
+private const val TAMANIO_PAGINA = 10
 
 data class VentasUiState(
     // Filtros (HU-11). Vacios = mes actual.
@@ -79,8 +89,16 @@ class VentasViewModel(private val repositorio: VentaRepository) : ViewModel() {
 
     fun cargar() = consultar(0)
 
-    fun cambiarDesde(valor: String) = _estado.update { it.copy(desde = valor) }
-    fun cambiarHasta(valor: String) = _estado.update { it.copy(hasta = valor) }
+    /* Al elegir una fecha en el calendario se busca de inmediato (sin boton "Buscar"). */
+    fun cambiarDesde(valor: String) {
+        _estado.update { it.copy(desde = valor) }
+        buscar()
+    }
+
+    fun cambiarHasta(valor: String) {
+        _estado.update { it.copy(hasta = valor) }
+        buscar()
+    }
 
     /* CA-11-01 y CA-11-03: valida las fechas antes de enviar la busqueda. */
     fun buscar() {
@@ -222,40 +240,43 @@ fun VentasScreen(sesion: Sesion, viewModel: VentasViewModel = koinViewModel()) {
     val estado by viewModel.estado.collectAsState()
     LaunchedEffect(Unit) { viewModel.cargar() }
 
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-        // ---------- Filtros por fecha (HU-11) ----------
+        EncabezadoSeccion("Ventas", "${estado.filtroAplicado} · ${estado.totalElementos} venta(s)") {
+            OutlinedButton(onClick = viewModel::limpiar) { Text("Mes actual") }
+        }
+
+        // ---------- Filtros por fecha (HU-11): se busca al elegir la fecha ----------
         Row(Modifier.widthIn(max = 560.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CampoFecha(estado.desde, viewModel::cambiarDesde, "Desde", Modifier.weight(1f))
             CampoFecha(estado.hasta, viewModel::cambiarHasta, "Hasta", Modifier.weight(1f))
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = viewModel::buscar) { Text("Buscar") }
-            OutlinedButton(onClick = viewModel::limpiar) { Text("Limpiar") }
-        }
-
-        Text(
-            "${estado.filtroAplicado} · ${estado.totalElementos} venta(s)",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
         estado.aviso?.let { Aviso(it, esError = false, onCerrar = viewModel::cerrarAviso) }
 
         Box(Modifier.weight(1f)) {
             when {
-                estado.cargando && estado.ventas.isEmpty() -> Cargando()
+                estado.cargando && estado.ventas.isEmpty() && estado.error == null -> Cargando()
                 estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
                 estado.ventas.isEmpty() -> Vacio("No hay ventas en ese período")
-                else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(estado.ventas, key = { it.id }) { venta ->
-                        TarjetaVenta(venta) { viewModel.seleccionar(venta) }
+                else -> BoxWithConstraints {
+                    if (maxWidth >= ANCHO_CELULAR + 160.dp) {
+                        TablaVentas(estado.ventas, viewModel::seleccionar)
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(estado.ventas, key = { it.id }) { venta ->
+                                TarjetaVenta(venta) { viewModel.seleccionar(venta) }
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // ---------- Paginas (CA-11-05) ----------
-        Paginador(estado.pagina, estado.totalPaginas, viewModel::paginaAnterior, viewModel::paginaSiguiente)
+        // ---------- Paginas (CA-11-05): 10 por pagina, siempre visible ----------
+        Paginador(
+            estado.pagina, estado.totalPaginas, viewModel::paginaAnterior, viewModel::paginaSiguiente,
+            detalle = rangoMostrado(estado.pagina, TAMANIO_PAGINA, estado.ventas.size, estado.totalElementos)
+        )
     }
 
     val seleccionada = estado.seleccionada
@@ -286,6 +307,39 @@ fun VentasScreen(sesion: Sesion, viewModel: VentasViewModel = koinViewModel()) {
             onCancelarConfirmacion = viewModel::cancelarConfirmacion,
             onCerrar = { viewModel.seleccionar(null) }
         )
+    }
+}
+
+/* Tabla de ventas (pantallas anchas): una fila por venta, clic para ver el detalle. */
+@Composable
+private fun TablaVentas(ventas: List<Venta>, onVer: (Venta) -> Unit) {
+    Tabla {
+        EncabezadoTabla(
+            listOf(
+                Columna("N.° venta", 1.1f), Columna("Fecha", 1.2f), Columna("Comprobante", 1.3f),
+                Columna("Cliente", 1.6f), Columna("Vendedor", 1.3f), Columna("Pago", 1f),
+                Columna("Total", 0.9f), Columna("Estado", 1f), Columna("", 0.4f)
+            )
+        )
+        LazyColumn {
+            items(ventas, key = { it.id }) { v ->
+                FilaTabla(onClick = { onVer(v) }) {
+                    Celda(v.numero, 1.1f, negrita = true)
+                    Celda(v.fecha.fechaHora(), 1.2f, secundario = true)
+                    Celda(v.numeroComprobante ?: "-", 1.3f)
+                    Celda(v.clienteNombre ?: "Clientes varios", 1.6f, secundario = v.clienteNombre == null)
+                    Celda(v.vendedor, 1.3f)
+                    Celda(v.medioPago.lowercase().replaceFirstChar { it.uppercase() }, 1f)
+                    Celda(v.total.soles(), 0.9f, negrita = true)
+                    Box(Modifier.weight(1f)) {
+                        if (v.anulada) Etiqueta("Anulada", ColoresEstado.peligro) else Etiqueta("Registrada", ColoresEstado.ok)
+                    }
+                    Box(Modifier.weight(0.4f)) {
+                        BotonAccion(Iconos.Ver, "Ver detalle", MaterialTheme.colorScheme.primary) { onVer(v) }
+                    }
+                }
+            }
+        }
     }
 }
 
