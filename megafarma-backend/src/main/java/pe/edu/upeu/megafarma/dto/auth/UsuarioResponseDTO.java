@@ -32,4 +32,12 @@ public class UsuarioResponseDTO {
     private boolean activo;
     private boolean bloqueado;
     private LocalDateTime creadoEn;
+    private String nombres;
+    private String apellidos;
+    private String dni;
+    private String telefono;
+    private String correo;
+    private boolean debeCambiarPassword;
+    /* Solo llega al crear la cuenta o al restablecer la contrasena; nunca se guarda en claro. */
+    private String passwordTemporal;
 }
