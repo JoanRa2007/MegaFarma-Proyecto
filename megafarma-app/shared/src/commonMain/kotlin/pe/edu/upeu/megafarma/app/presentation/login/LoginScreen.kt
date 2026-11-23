@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import pe.edu.upeu.megafarma.app.presentation.tema.ColoresMarca
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -62,7 +63,7 @@ fun LoginScreen(viewModel: LoginViewModel = koinViewModel()) {
 @Composable
 private fun PanelMarca(modifier: Modifier) {
     Box(
-        modifier.background(Brush.linearGradient(listOf(Color(0xFF0E7C66), Color(0xFF075E54), Color(0xFF0B3B4F)))),
+        modifier.background(Brush.linearGradient(ColoresMarca.degradado)),
         contentAlignment = Alignment.Center
     ) {
         Column(Modifier.widthIn(max = 460.dp).padding(48.dp)) {
