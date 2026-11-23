@@ -25,7 +25,7 @@ import pe.edu.upeu.megafarma.app.domain.model.Periodo
 import pe.edu.upeu.megafarma.app.domain.model.ReporteInventario
 import pe.edu.upeu.megafarma.app.domain.model.ResumenVentas
 import pe.edu.upeu.megafarma.app.domain.repository.ReporteRepository
-import pe.edu.upeu.megafarma.app.presentation.componentes.Campo
+import pe.edu.upeu.megafarma.app.presentation.componentes.CampoFecha
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Titulo
@@ -87,13 +87,18 @@ fun ReportesScreen(viewModel: ReportesViewModel = koinViewModel()) {
                 FilterChip(selected = estado.tipo == t, onClick = { viewModel.elegirTipo(t) }, label = { Text("Reporte por ${t.etiqueta.lowercase()}") })
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Campo(
-                estado.fecha, viewModel::cambiarFecha, "Fecha (AAAA-MM-DD)", Modifier.widthIn(max = 260.dp),
-                ayuda = "Cualquier día del ${estado.tipo.etiqueta.lowercase()}. Vacío = hoy"
-            )
-            Button(onClick = viewModel::cargar) { Text("Generar") }
-        }
+        CampoFecha(
+            estado.fecha,
+            { viewModel.cambiarFecha(it); viewModel.cargar() },
+            when (estado.tipo) {
+                Periodo.MES -> "Mes del reporte"
+                Periodo.ANIO -> "Año del reporte"
+                else -> "Día del reporte"
+            },
+            Modifier.widthIn(max = 320.dp),
+            ayuda = if (estado.tipo == Periodo.DIA) null else "Elija cualquier día de ese ${estado.tipo.etiqueta.lowercase()}",
+            textoVacio = "Hoy"
+        )
 
         when {
             estado.cargando && estado.resumen == null -> Cargando()
