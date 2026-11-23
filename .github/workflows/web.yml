@@ -1,9 +1,15 @@
 # Compila la app web (Kotlin/Wasm) y la publica en GitHub Pages.
-# Se ejecuta sola cuando hay cambios de la app en develop o main.
+# - En cada Pull Request solo compila, para avisar si el cambio rompe la app.
+# - Al hacer merge en develop o main, compila y publica.
 name: Publicar app web
 
 on:
   push:
+    branches: [develop, main]
+    paths:
+      - "megafarma-app/**"
+      - ".github/workflows/web.yml"
+  pull_request:
     branches: [develop, main]
     paths:
       - "megafarma-app/**"
@@ -16,7 +22,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -36,11 +42,13 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :shared:wasmJsBrowserDistribution --no-daemon
-      - uses: actions/upload-pages-artifact@v3
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: megafarma-app/shared/build/dist/wasmJs/productionExecutable
 
   publicar:
+    if: github.event_name != 'pull_request'
     needs: compilar
     runs-on: ubuntu-latest
     environment:
