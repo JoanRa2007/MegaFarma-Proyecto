@@ -15,9 +15,12 @@ import pe.edu.upeu.megafarma.app.domain.model.DatosProducto
 import pe.edu.upeu.megafarma.app.domain.model.Producto
 import pe.edu.upeu.megafarma.app.domain.repository.ProductoRepository
 
+/* Que productos se ven en la tabla segun su estado. */
+enum class FiltroEstado(val etiqueta: String) { ACTIVOS("Activos"), DESACTIVADOS("Desactivados"), TODOS("Todos") }
+
 data class ProductosUiState(
     val texto: String = "",
-    val incluirInactivos: Boolean = false,
+    val filtro: FiltroEstado = FiltroEstado.ACTIVOS,
     val cargando: Boolean = true,
     val productos: List<Producto> = emptyList(),
     val error: String? = null,
@@ -56,10 +59,8 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
         }
     }
 
-    fun alternarInactivos() {
-        _estado.update { it.copy(incluirInactivos = !it.incluirInactivos) }
-        buscarAhora()
-    }
+    /* Se traen activos y desactivados juntos; el filtro solo cambia lo que se muestra. */
+    fun filtrar(filtro: FiltroEstado) = _estado.update { it.copy(filtro = filtro) }
 
     private fun buscarAhora() {
         busqueda?.cancel()
@@ -69,7 +70,7 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
     private suspend fun ejecutarBusqueda() {
         _estado.update { it.copy(cargando = true, error = null) }
         val actual = _estado.value
-        when (val r = repositorio.buscar(actual.texto, actual.incluirInactivos)) {
+        when (val r = repositorio.buscar(actual.texto, incluirInactivos = true)) {
             is Resultado.Exito -> _estado.update { it.copy(cargando = false, productos = r.datos) }
             is Resultado.Error -> _estado.update { it.copy(cargando = false, error = r.mensaje) }
         }
