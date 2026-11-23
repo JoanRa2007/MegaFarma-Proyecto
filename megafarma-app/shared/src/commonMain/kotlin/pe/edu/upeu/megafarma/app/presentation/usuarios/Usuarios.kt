@@ -10,6 +10,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -62,7 +67,11 @@ data class UsuariosUiState(
     /* Texto del buscador: nombre, usuario o rol. */
     val texto: String = "",
     /* Cuenta que espera confirmacion para desactivarse. */
-    val porDesactivar: Usuario? = null
+    val porDesactivar: Usuario? = null,
+    /* Cuenta que espera confirmacion para restablecer su contrasena. */
+    val porRestablecer: Usuario? = null,
+    /* Contrasena temporal recien generada: se muestra una sola vez al admin. */
+    val temporal: Pair<Usuario, String>? = null
 )
 
 /* Administracion de usuarios (HU-22 a HU-24), solo ADMIN. */
@@ -105,10 +114,13 @@ class UsuariosViewModel(private val repositorio: UsuarioRepository) : ViewModel(
         val actual = _estado.value.editando ?: return
         val esNuevo = actual.id == 0L
         val error = when {
+            datos.nombres.isBlank() -> "Ingrese los nombres"
+            datos.apellidos.isBlank() -> "Ingrese los apellidos"
+            datos.dni.isNotBlank() && !(datos.dni.length == 8 && datos.dni.all { it.isDigit() }) -> "El DNI debe tener 8 dígitos"
+            datos.telefono.isNotBlank() && !(datos.telefono.length == 9 && datos.telefono.startsWith("9") && datos.telefono.all { it.isDigit() }) ->
+                "El teléfono debe tener 9 dígitos y empezar con 9"
+            datos.correo.isNotBlank() && !Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").matches(datos.correo.trim()) -> "El correo no tiene un formato válido"
             datos.username.trim().length < 3 -> "El usuario debe tener al menos 3 caracteres"
-            datos.nombreCompleto.isBlank() -> "Ingrese el nombre completo"
-            esNuevo && (datos.password?.length ?: 0) < 8 -> "La contraseña debe tener al menos 8 caracteres"
-            !esNuevo && !datos.password.isNullOrEmpty() && datos.password.length < 8 -> "La nueva contraseña debe tener al menos 8 caracteres"
             else -> null
         }
         if (error != null) {
@@ -119,10 +131,12 @@ class UsuariosViewModel(private val repositorio: UsuarioRepository) : ViewModel(
         viewModelScope.launch {
             when (val r = repositorio.guardar(if (esNuevo) null else actual.id, datos)) {
                 is Resultado.Exito -> {
+                    val clave = r.datos.passwordTemporal
                     _estado.update {
                         it.copy(
                             guardando = false, editando = null, avisoEsError = false,
-                            aviso = if (esNuevo) "Usuario ${r.datos.username} creado" else "Usuario ${r.datos.username} actualizado"
+                            aviso = if (esNuevo) "Usuario ${r.datos.username} creado" else "Usuario ${r.datos.username} actualizado",
+                            temporal = if (clave != null) r.datos to clave else null
                         )
                     }
                     cargar()
@@ -131,6 +145,28 @@ class UsuariosViewModel(private val repositorio: UsuarioRepository) : ViewModel(
             }
         }
     }
+
+    fun pedirRestablecer(usuario: Usuario) = _estado.update { it.copy(porRestablecer = usuario) }
+
+    fun cancelarRestablecer() = _estado.update { it.copy(porRestablecer = null) }
+
+    /* Recuperar contrasena: genera una temporal y el trabajador la cambia al entrar. */
+    fun confirmarRestablecer() {
+        val usuario = _estado.value.porRestablecer ?: return
+        _estado.update { it.copy(porRestablecer = null) }
+        viewModelScope.launch {
+            when (val r = repositorio.restablecerPassword(usuario.id)) {
+                is Resultado.Exito -> {
+                    val clave = r.datos.passwordTemporal
+                    _estado.update { it.copy(temporal = if (clave != null) r.datos to clave else null) }
+                    cargar()
+                }
+                is Resultado.Error -> _estado.update { it.copy(aviso = r.mensaje, avisoEsError = true) }
+            }
+        }
+    }
+
+    fun cerrarTemporal() = _estado.update { it.copy(temporal = null) }
 
     fun cambiarEstado(usuario: Usuario) {
         viewModelScope.launch {
@@ -155,7 +191,8 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
 
     val q = estado.texto.trim().lowercase()
     val visibles = estado.usuarios.filter {
-        q.isEmpty() || it.nombreCompleto.lowercase().contains(q) || it.username.lowercase().contains(q) || it.rol.lowercase().contains(q)
+        q.isEmpty() || it.nombreCompleto.lowercase().contains(q) || it.username.lowercase().contains(q) ||
+            it.rol.lowercase().contains(q) || (it.dni ?: "").contains(q)
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -163,7 +200,7 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
             OutlinedTextField(
                 value = estado.texto,
                 onValueChange = viewModel::buscar,
-                placeholder = { Text("Buscar por nombre, usuario o rol") },
+                placeholder = { Text("Buscar por nombre, usuario, DNI o rol") },
                 leadingIcon = { Icon(Iconos.Buscar, null, Modifier.size(18.dp)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
@@ -190,13 +227,13 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
                     val ancho = maxWidth >= ANCHO_CELULAR
                     Tabla {
                         EncabezadoTabla(
-                            if (ancho) listOf(Columna("Nombre", 2.4f), Columna("Usuario", 1.3f), Columna("Rol", 1.3f),
-                                Columna("Estado", 1.4f), Columna("Acciones", 0.9f))
-                            else listOf(Columna("Trabajador", 3f), Columna("", 0.9f))
+                            if (ancho) listOf(Columna("Nombre", 2.4f), Columna("Usuario", 1.2f), Columna("DNI", 1f), Columna("Rol", 1.2f),
+                                Columna("Estado", 1.3f), Columna("Acciones", 1.2f))
+                            else listOf(Columna("Trabajador", 3f), Columna("", 1.2f))
                         )
                         LazyColumn {
                             items(visibles, key = { it.id }) { u ->
-                                FilaUsuario(u, ancho, onEditar = { viewModel.editar(u) },
+                                FilaUsuario(u, ancho, onEditar = { viewModel.editar(u) }, onRestablecer = { viewModel.pedirRestablecer(u) },
                                     onDesactivar = { viewModel.pedirDesactivar(u) }, onActivar = { viewModel.cambiarEstado(u) })
                             }
                         }
@@ -208,6 +245,40 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
 
     estado.editando?.let { u ->
         UsuarioFormDialog(u, estado.guardando, estado.errorFormulario, viewModel::guardar, viewModel::cerrarFormulario)
+    }
+
+    estado.porRestablecer?.let { u ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelarRestablecer,
+            title = { Text("¿Restablecer la contraseña de ${u.nombreCompleto}?") },
+            text = { Text("Se generará una contraseña temporal. Su contraseña actual dejará de funcionar y deberá crear una nueva al ingresar.") },
+            confirmButton = { Button(onClick = viewModel::confirmarRestablecer) { Text("Restablecer") } },
+            dismissButton = { TextButton(onClick = viewModel::cancelarRestablecer) { Text("Cancelar") } }
+        )
+    }
+
+    estado.temporal?.let { (u, clave) ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Contraseña temporal de ${u.username}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Entréguela al trabajador. Solo se muestra esta vez; al ingresar, el sistema le pedirá crear su propia contraseña.")
+                    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
+                        SelectionContainer {
+                            Text(
+                                clave,
+                                Modifier.fillMaxWidth().padding(14.dp),
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = { Button(onClick = viewModel::cerrarTemporal) { Text("Listo, ya la anoté") } }
+        )
     }
 
     estado.porDesactivar?.let { u ->
@@ -234,7 +305,14 @@ private fun EstadoUsuario(u: Usuario) = when {
 }
 
 @Composable
-private fun FilaUsuario(u: Usuario, ancho: Boolean, onEditar: () -> Unit, onDesactivar: () -> Unit, onActivar: () -> Unit) {
+private fun FilaUsuario(
+    u: Usuario,
+    ancho: Boolean,
+    onEditar: () -> Unit,
+    onRestablecer: () -> Unit,
+    onDesactivar: () -> Unit,
+    onActivar: () -> Unit
+) {
     FilaTabla {
         if (ancho) {
             Row(Modifier.weight(2.4f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -242,9 +320,10 @@ private fun FilaUsuario(u: Usuario, ancho: Boolean, onEditar: () -> Unit, onDesa
                 Spacer(Modifier.width(10.dp))
                 Text(u.nombreCompleto, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Celda(u.username, 1.3f, secundario = true)
-            Box(Modifier.weight(1.3f)) { Etiqueta(u.rol, colorRol(u.rol)) }
-            Box(Modifier.weight(1.4f)) { EstadoUsuario(u) }
+            Celda(u.username, 1.2f, secundario = true)
+            Celda(u.dni ?: "—", 1f, secundario = true)
+            Box(Modifier.weight(1.2f)) { Etiqueta(u.rol, colorRol(u.rol)) }
+            Box(Modifier.weight(1.3f)) { EstadoUsuario(u) }
         } else {
             Column(Modifier.weight(3f).padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(u.nombreCompleto, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -255,8 +334,9 @@ private fun FilaUsuario(u: Usuario, ancho: Boolean, onEditar: () -> Unit, onDesa
                 }
             }
         }
-        Row(Modifier.weight(0.9f), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1.2f), verticalAlignment = Alignment.CenterVertically) {
             BotonAccion(Iconos.Editar, "Editar", ColoresEstado.alerta, onEditar)
+            BotonAccion(Iconos.Llave, "Restablecer contraseña", ColoresEstado.info, onRestablecer)
             if (u.activo && !u.bloqueado) BotonAccion(Iconos.Eliminar, "Desactivar", ColoresEstado.peligro, onDesactivar)
             else BotonAccion(Iconos.Restaurar, if (u.bloqueado) "Desbloquear" else "Activar", ColoresEstado.ok, onActivar)
         }
@@ -278,45 +358,75 @@ private fun UsuarioFormDialog(
     onCerrar: () -> Unit
 ) {
     val esNuevo = usuario.id == 0L
+    // Cuentas antiguas sin nombres/apellidos: se separa el nombre completo como sugerencia.
+    val partes = usuario.nombreCompleto.trim().split(" ", limit = 2)
+    var nombres by remember(usuario.id) { mutableStateOf(usuario.nombres ?: partes.getOrElse(0) { "" }) }
+    var apellidos by remember(usuario.id) { mutableStateOf(usuario.apellidos ?: partes.getOrElse(1) { "" }) }
+    var dni by remember(usuario.id) { mutableStateOf(usuario.dni ?: "") }
+    var telefono by remember(usuario.id) { mutableStateOf(usuario.telefono ?: "") }
+    var correo by remember(usuario.id) { mutableStateOf(usuario.correo ?: "") }
     var username by remember(usuario.id) { mutableStateOf(usuario.username) }
-    var nombre by remember(usuario.id) { mutableStateOf(usuario.nombreCompleto) }
-    var clave by remember(usuario.id) { mutableStateOf("") }
     var rol by remember(usuario.id) { mutableStateOf(usuario.rol) }
+    var abierto by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = { if (!guardando) onCerrar() },
-        title = { Text(if (esNuevo) "Nuevo usuario" else "Editar ${usuario.username}") },
+        title = { Text(if (esNuevo) "Nuevo trabajador" else "Editar ${usuario.username}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Campo(username, { username = it }, "Usuario *")
-                Campo(nombre, { nombre = it }, "Nombre completo *")
-                OutlinedTextField(
-                    value = clave,
-                    onValueChange = { clave = it },
-                    label = { Text(if (esNuevo) "Contraseña *" else "Nueva contraseña (opcional)") },
-                    supportingText = { Text("Mínimo 8 caracteres") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Text("Rol", style = MaterialTheme.typography.labelLarge)
-                ROLES.forEach { (nombreRol, descripcion) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = rol == nombreRol, onClick = { rol = nombreRol })
-                        Column {
-                            Text(nombreRol, fontWeight = FontWeight.SemiBold)
-                            Text(descripcion, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Datos personales", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Campo(nombres, { nombres = it }, "Nombres *")
+                Campo(apellidos, { apellidos = it }, "Apellidos *")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Campo(dni, { if (it.length <= 8) dni = it.filter { c -> c.isDigit() } }, "DNI", Modifier.weight(1f), numerico = true)
+                    Campo(telefono, { if (it.length <= 9) telefono = it.filter { c -> c.isDigit() } }, "Teléfono", Modifier.weight(1f), numerico = true)
+                }
+                Campo(correo, { correo = it.trim() }, "Correo")
+
+                Spacer(Modifier.height(4.dp))
+                Text("Acceso al sistema", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Campo(username, { username = it.trim().lowercase() }, "Usuario *")
+                // Lista desplegable de roles: se toca el campo y se elige.
+                Box {
+                    OutlinedTextField(
+                        value = rol,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Rol *") },
+                        supportingText = { Text(ROLES.firstOrNull { it.first == rol }?.second ?: "") },
+                        trailingIcon = { Icon(Iconos.Abajo, null) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Box(Modifier.matchParentSize().padding(top = 8.dp, bottom = 22.dp).clickable { abierto = true })
+                    DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
+                        ROLES.forEach { (nombreRol, descripcion) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(nombreRol, fontWeight = FontWeight.SemiBold)
+                                        Text(descripcion, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                },
+                                onClick = { rol = nombreRol; abierto = false }
+                            )
                         }
                     }
+                }
+                if (esNuevo) {
+                    Text(
+                        "Al guardar, el sistema genera una contraseña temporal para entregarla al trabajador.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 if (error != null) Text(error, color = MaterialTheme.colorScheme.error)
             }
         },
         confirmButton = {
-            Button(onClick = { onGuardar(DatosUsuario(username, clave.ifEmpty { null }, nombre, rol)) }, enabled = !guardando) {
-                Text(if (guardando) "Guardando…" else "Guardar")
-            }
+            Button(
+                onClick = { onGuardar(DatosUsuario(username, nombres, apellidos, dni, telefono, correo, rol)) },
+                enabled = !guardando
+            ) { Text(if (guardando) "Guardando…" else "Guardar") }
         },
         dismissButton = { TextButton(onClick = onCerrar, enabled = !guardando) { Text("Cancelar") } }
     )
