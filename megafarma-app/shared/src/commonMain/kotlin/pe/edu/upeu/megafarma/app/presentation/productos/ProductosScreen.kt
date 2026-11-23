@@ -34,6 +34,7 @@ import pe.edu.upeu.megafarma.app.presentation.tema.ColoresEstado
  * (editar, desactivar o reactivar). Al tocar una fila se abre el detalle
  * con el stock por lote.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProductosScreen(
     sesion: Sesion,
@@ -45,28 +46,44 @@ fun ProductosScreen(
     val puedeEscribir = sesion.puede(Permiso.CATALOGO_ESCRIBIR)
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
-                value = estado.texto,
-                onValueChange = viewModel::cambiarTexto,
-                placeholder = { Text("Buscar por nombre, código o principio activo") },
-                leadingIcon = { Icon(Iconos.Buscar, null, Modifier.size(18.dp)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            if (puedeEscribir) {
-                Button(onClick = viewModel::abrirFormulario) {
-                    Icon(Iconos.Agregar, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Nuevo producto")
-                }
+        OutlinedTextField(
+            value = estado.texto,
+            onValueChange = viewModel::cambiarTexto,
+            placeholder = { Text("Buscar por nombre, código o principio activo") },
+            leadingIcon = { Icon(Iconos.Buscar, null, Modifier.size(18.dp)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Filtros por estado con su contador: asi se entiende que hacen aunque no haya desactivados.
+        val activos = estado.productos.count { it.activo }
+        val desactivados = estado.productos.size - activos
+        val filtro = if (puedeEscribir) estado.filtro else FiltroEstado.ACTIVOS
+        val visibles = estado.productos.filter {
+            when (filtro) {
+                FiltroEstado.ACTIVOS -> it.activo
+                FiltroEstado.DESACTIVADOS -> !it.activo
+                FiltroEstado.TODOS -> true
             }
         }
-
         if (puedeEscribir) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = estado.incluirInactivos, onCheckedChange = { viewModel.alternarInactivos() })
-                Text("Mostrar desactivados", style = MaterialTheme.typography.bodyMedium)
+                FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FiltroEstado.entries.forEach { f ->
+                        val n = when (f) {
+                            FiltroEstado.ACTIVOS -> activos
+                            FiltroEstado.DESACTIVADOS -> desactivados
+                            FiltroEstado.TODOS -> estado.productos.size
+                        }
+                        FilterChip(selected = filtro == f, onClick = { viewModel.filtrar(f) }, label = { Text("${f.etiqueta} ($n)") })
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = viewModel::abrirFormulario, contentPadding = PaddingValues(horizontal = 14.dp)) {
+                    Icon(Iconos.Agregar, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Nuevo")
+                }
             }
         }
 
@@ -75,20 +92,23 @@ fun ProductosScreen(
         when {
             estado.cargando && estado.productos.isEmpty() -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
-            estado.productos.isEmpty() -> Vacio("No se encontraron productos")
+            visibles.isEmpty() -> Vacio(
+                if (filtro == FiltroEstado.DESACTIVADOS && estado.texto.isBlank()) "No hay productos desactivados"
+                else "No se encontraron productos"
+            )
             else -> {
                 Text(
-                    "${estado.productos.size} producto(s) · toque una fila para ver su stock por lote",
+                    "${visibles.size} producto(s) · toque una fila para ver su stock por lote",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Tabla(Modifier.weight(1f)) {
                     EncabezadoTabla(
                         listOf(Columna("Producto", 3f), Columna("Precio", 1f), Columna("Stock", 0.8f)) +
-                            if (puedeEscribir) listOf(Columna("Acciones", 0.9f)) else emptyList()
+                            if (puedeEscribir) listOf(Columna("", 0.9f)) else emptyList()
                     )
                     LazyColumn {
-                        items(estado.productos, key = { it.id }) { producto ->
+                        items(visibles, key = { it.id }) { producto ->
                             FilaProducto(
                                 producto = producto,
                                 puedeEscribir = puedeEscribir,
