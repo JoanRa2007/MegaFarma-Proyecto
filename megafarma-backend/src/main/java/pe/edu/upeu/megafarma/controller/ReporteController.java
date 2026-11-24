@@ -9,11 +9,14 @@ package pe.edu.upeu.megafarma.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RestController;
 import pe.edu.upeu.megafarma.dto.inventario.MovimientoResponseDTO;
 import pe.edu.upeu.megafarma.dto.reporte.ProductoMasVendidoDTO;
@@ -30,6 +33,7 @@ import java.util.List;
 @RequestMapping("/api/v1/reportes")
 // @Tag: nombre del grupo con que aparece este controlador en Swagger
 @Tag(name = "9. Reportes", description = "Reportes de gestión (solo ADMIN)")
+@Validated
 public class ReporteController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
@@ -46,11 +50,14 @@ public class ReporteController {
     // @GetMapping: atiende peticiones HTTP GET (leer)
     @GetMapping("/resumen")
     @Operation(summary = "Reporte de ventas por DIA, MES o ANIO",
-            description = "fecha: cualquier día del periodo (AAAA-MM-DD). Por defecto, hoy.")
+            description = "fecha: cualquier día del periodo (AAAA-MM-DD). Por defecto, hoy. Las tablas del reporte se paginan de 10 en 10.")
     public ResponseEntity<pe.edu.upeu.megafarma.dto.reporte.ResumenVentasDTO> resumen(
             @RequestParam(defaultValue = "DIA") pe.edu.upeu.megafarma.enums.Periodo tipo,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
-        return ResponseEntity.ok(resumenVentasService.reporte(tipo, fecha));
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(defaultValue = "0") @Min(0) int paginaSerie,
+            @RequestParam(defaultValue = "0") @Min(0) int paginaTop,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(10) int tamanio) {
+        return ResponseEntity.ok(resumenVentasService.reporte(tipo, fecha, paginaSerie, paginaTop, tamanio));
     }
 
     @GetMapping("/ventas")

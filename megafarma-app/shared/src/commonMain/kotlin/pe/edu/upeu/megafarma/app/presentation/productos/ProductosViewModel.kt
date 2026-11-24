@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.edu.upeu.megafarma.app.core.Resultado
+import pe.edu.upeu.megafarma.app.core.TAMANIO_TABLA
 import pe.edu.upeu.megafarma.app.domain.model.Categoria
 import pe.edu.upeu.megafarma.app.domain.model.DatosProducto
 import pe.edu.upeu.megafarma.app.domain.model.Producto
@@ -33,7 +34,11 @@ data class ProductosUiState(
     /* Producto que se edita desde la tabla; null cuando el formulario es para uno nuevo. */
     val editando: Producto? = null,
     /* Producto que espera confirmacion para desactivarse. */
-    val porDesactivar: Producto? = null
+    val porDesactivar: Producto? = null,
+    /* Paginacion de la tabla: el servidor envia 10 filas por pagina. */
+    val pagina: Int = 0,
+    val totalPaginas: Int = 0,
+    val totalElementos: Long = 0
 )
 
 /*
@@ -51,7 +56,7 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
 
     /* Busca 350 ms despues de la ultima tecla, para no llamar a la API en cada letra. */
     fun cambiarTexto(texto: String) {
-        _estado.update { it.copy(texto = texto) }
+        _estado.update { it.copy(texto = texto, pagina = 0) }
         busqueda?.cancel()
         busqueda = viewModelScope.launch {
             delay(350)
@@ -59,8 +64,26 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
         }
     }
 
-    /* Se traen activos y desactivados juntos; el filtro solo cambia lo que se muestra. */
-    fun filtrar(filtro: FiltroEstado) = _estado.update { it.copy(filtro = filtro) }
+    /* El filtro se envia al servidor para que la pagina de 10 sea exacta. */
+    fun filtrar(filtro: FiltroEstado) {
+        _estado.update { it.copy(filtro = filtro, pagina = 0) }
+        buscarAhora()
+    }
+
+    fun paginaSiguiente() {
+        val e = _estado.value
+        if (e.pagina + 1 < e.totalPaginas) {
+            _estado.update { it.copy(pagina = it.pagina + 1) }
+            buscarAhora()
+        }
+    }
+
+    fun paginaAnterior() {
+        if (_estado.value.pagina > 0) {
+            _estado.update { it.copy(pagina = it.pagina - 1) }
+            buscarAhora()
+        }
+    }
 
     private fun buscarAhora() {
         busqueda?.cancel()
@@ -70,8 +93,20 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
     private suspend fun ejecutarBusqueda() {
         _estado.update { it.copy(cargando = true, error = null) }
         val actual = _estado.value
-        when (val r = repositorio.buscar(actual.texto, incluirInactivos = true)) {
-            is Resultado.Exito -> _estado.update { it.copy(cargando = false, productos = r.datos) }
+        val incluirInactivos = actual.filtro != FiltroEstado.ACTIVOS
+        val soloInactivos = actual.filtro == FiltroEstado.DESACTIVADOS
+        when (val r = repositorio.buscarPagina(
+            actual.texto, incluirInactivos, soloInactivos, actual.pagina, TAMANIO_TABLA
+        )) {
+            is Resultado.Exito -> _estado.update {
+                it.copy(
+                    cargando = false,
+                    productos = r.datos.elementos,
+                    pagina = r.datos.pagina,
+                    totalPaginas = r.datos.totalPaginas,
+                    totalElementos = r.datos.totalElementos
+                )
+            }
             is Resultado.Error -> _estado.update { it.copy(cargando = false, error = r.mensaje) }
         }
     }
@@ -103,7 +138,10 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
                     val texto = if (editando == null) "Producto ${r.datos.codigo} registrado correctamente"
                     else "Producto ${r.datos.codigo} actualizado"
                     _estado.update {
-                        it.copy(guardando = false, formularioAbierto = false, editando = null, aviso = texto, avisoEsError = false)
+                        it.copy(
+                            guardando = false, formularioAbierto = false, editando = null,
+                            aviso = texto, avisoEsError = false, pagina = 0
+                        )
                     }
                     buscarAhora()
                 }

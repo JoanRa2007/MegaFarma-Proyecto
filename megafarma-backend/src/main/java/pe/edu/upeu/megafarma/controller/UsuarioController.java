@@ -9,6 +9,9 @@ package pe.edu.upeu.megafarma.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +23,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RestController;
+import pe.edu.upeu.megafarma.dto.PaginaResponseDTO;
 import pe.edu.upeu.megafarma.dto.auth.RolResponseDTO;
 import pe.edu.upeu.megafarma.dto.auth.UsuarioRequestDTO;
 import pe.edu.upeu.megafarma.dto.auth.UsuarioResponseDTO;
@@ -34,6 +39,7 @@ import java.util.List;
 @RequestMapping("/api/v1")
 // @Tag: nombre del grupo con que aparece este controlador en Swagger
 @Tag(name = "8. Usuarios y roles", description = "Administración de cuentas (solo ADMIN)")
+@Validated
 public class UsuarioController {
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
@@ -50,10 +56,13 @@ public class UsuarioController {
     // @GetMapping: atiende peticiones HTTP GET (leer)
     @GetMapping("/usuarios")
     // @Operation: titulo y descripcion de la operacion en Swagger
-    @Operation(summary = "Listar usuarios")
-    public ResponseEntity<List<UsuarioResponseDTO>> listar() {
+    @Operation(summary = "Listar usuarios (10 por página)")
+    public ResponseEntity<PaginaResponseDTO<UsuarioResponseDTO>> listar(
+            @RequestParam(required = false) @Pattern(regexp = "^(?!.*--)[\\p{L}\\p{N}\\s.,'()/%+-]{0,100}$", message = "La búsqueda contiene caracteres no permitidos") String q,
+            @RequestParam(defaultValue = "0") @Min(0) int pagina,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(10) int tamanio) {
         // responde HTTP 200 OK; el objeto se convierte a JSON
-        return ResponseEntity.ok(usuarioService.listar());
+        return ResponseEntity.ok(usuarioService.listar(q, pagina, tamanio));
     }
 
     @GetMapping("/usuarios/{id}")

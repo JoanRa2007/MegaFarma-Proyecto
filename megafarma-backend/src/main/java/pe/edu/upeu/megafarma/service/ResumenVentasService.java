@@ -16,5 +16,5 @@ public interface ResumenVentasService {
     ResumenVentasDTO dashboard(Periodo periodo);
 
     /* DIA, MES o ANIO completo que contiene la fecha indicada. */
-    ResumenVentasDTO reporte(Periodo tipo, LocalDate fecha);
+    ResumenVentasDTO reporte(Periodo tipo, LocalDate fecha, int paginaSerie, int paginaTop, int tamanio);
 }

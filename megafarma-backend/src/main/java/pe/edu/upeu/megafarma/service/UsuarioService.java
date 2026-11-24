@@ -6,6 +6,7 @@ package pe.edu.upeu.megafarma.service;
  * El controlador depende de esta interfaz y no de la implementacion (service.impl).
  */
 
+import pe.edu.upeu.megafarma.dto.PaginaResponseDTO;
 import pe.edu.upeu.megafarma.dto.auth.RolResponseDTO;
 import pe.edu.upeu.megafarma.dto.auth.UsuarioRequestDTO;
 import pe.edu.upeu.megafarma.dto.auth.UsuarioResponseDTO;
@@ -15,7 +16,7 @@ import java.util.List;
 // interface: solo declara metodos; otra clase (o Spring) pone la implementacion
 public interface UsuarioService {
 
-    List<UsuarioResponseDTO> listar();
+    PaginaResponseDTO<UsuarioResponseDTO> listar(String q, int pagina, int tamanio);
 
     UsuarioResponseDTO buscar(Long id);
 

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import pe.edu.upeu.megafarma.app.core.Resultado
+import pe.edu.upeu.megafarma.app.core.TAMANIO_TABLA
 import pe.edu.upeu.megafarma.app.core.esFechaValida
 import pe.edu.upeu.megafarma.app.core.fechaCorta
 import pe.edu.upeu.megafarma.app.core.soles
@@ -39,7 +40,10 @@ data class ReportesUiState(
     val cargando: Boolean = true,
     val resumen: ResumenVentas? = null,
     val inventario: ReporteInventario? = null,
-    val error: String? = null
+    val error: String? = null,
+    /* Cada tabla del reporte tiene su propia pagina de 10 filas. */
+    val paginaSerie: Int = 0,
+    val paginaTop: Int = 0
 )
 
 /* Reportes de ventas por dia, mes o año (HU-17 a HU-19) e inventario valorizado (HU-18). */
@@ -49,22 +53,25 @@ class ReportesViewModel(private val repositorio: ReporteRepository) : ViewModel(
     val estado: StateFlow<ReportesUiState> = _estado.asStateFlow()
 
     fun elegirTipo(tipo: Periodo) {
-        _estado.update { it.copy(tipo = tipo) }
-        cargar()
+        _estado.update { it.copy(tipo = tipo, paginaSerie = 0, paginaTop = 0) }
+        cargar(0, 0)
     }
 
-    fun cambiarFecha(fecha: String) = _estado.update { it.copy(fecha = fecha) }
+    fun cambiarFecha(fecha: String) {
+        _estado.update { it.copy(fecha = fecha, paginaSerie = 0, paginaTop = 0) }
+        cargar(0, 0)
+    }
 
-    fun cargar() {
+    fun cargar(paginaSerie: Int = _estado.value.paginaSerie, paginaTop: Int = _estado.value.paginaTop) {
         val e = _estado.value
         val fecha = e.fecha.trim()
         if (fecha.isNotEmpty() && !esFechaValida(fecha)) {
             _estado.update { it.copy(error = "La fecha debe tener el formato AAAA-MM-DD") }
             return
         }
-        _estado.update { it.copy(cargando = true, error = null) }
+        _estado.update { it.copy(cargando = true, error = null, paginaSerie = paginaSerie, paginaTop = paginaTop) }
         viewModelScope.launch {
-            val resumen = repositorio.resumen(e.tipo, fecha.ifEmpty { null })
+            val resumen = repositorio.resumen(e.tipo, fecha.ifEmpty { null }, paginaSerie, paginaTop, TAMANIO_TABLA)
             val inventario = repositorio.inventario()
             _estado.update {
                 it.copy(
@@ -75,6 +82,24 @@ class ReportesViewModel(private val repositorio: ReporteRepository) : ViewModel(
                 )
             }
         }
+    }
+
+    fun serieSiguiente() {
+        val r = _estado.value.resumen ?: return
+        if (_estado.value.paginaSerie + 1 < r.serieTabla.totalPaginas) cargar(_estado.value.paginaSerie + 1, _estado.value.paginaTop)
+    }
+
+    fun serieAnterior() {
+        if (_estado.value.paginaSerie > 0) cargar(_estado.value.paginaSerie - 1, _estado.value.paginaTop)
+    }
+
+    fun topSiguiente() {
+        val r = _estado.value.resumen ?: return
+        if (_estado.value.paginaTop + 1 < r.topProductosTabla.totalPaginas) cargar(_estado.value.paginaSerie, _estado.value.paginaTop + 1)
+    }
+
+    fun topAnterior() {
+        if (_estado.value.paginaTop > 0) cargar(_estado.value.paginaSerie, _estado.value.paginaTop - 1)
     }
 }
 
@@ -103,7 +128,7 @@ fun ReportesScreen(viewModel: ReportesViewModel = koinViewModel()) {
         )
         CampoFecha(
             estado.fecha,
-            { viewModel.cambiarFecha(it); viewModel.cargar() },
+            viewModel::cambiarFecha,
             when (estado.tipo) {
                 Periodo.MES -> "Mes del reporte"
                 Periodo.ANIO -> "Año del reporte"
@@ -117,7 +142,18 @@ fun ReportesScreen(viewModel: ReportesViewModel = koinViewModel()) {
         when {
             estado.cargando && estado.resumen == null -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
-            else -> estado.resumen?.let { ResumenVentasVista(it, estado.inventario) }
+            else -> estado.resumen?.let { r ->
+                ResumenVentasVista(
+                    r = r,
+                    inventario = estado.inventario,
+                    paginaSerie = estado.paginaSerie,
+                    onSerieAnterior = viewModel::serieAnterior,
+                    onSerieSiguiente = viewModel::serieSiguiente,
+                    paginaTop = estado.paginaTop,
+                    onTopAnterior = viewModel::topAnterior,
+                    onTopSiguiente = viewModel::topSiguiente
+                )
+            }
         }
     }
 }

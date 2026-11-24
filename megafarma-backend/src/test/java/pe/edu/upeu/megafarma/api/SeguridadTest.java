@@ -103,7 +103,7 @@ class SeguridadTest {
     @DisplayName("aunque el texto llegara a la consulta, es un parámetro: no altera el SQL")
     void consultasParametrizadas() {
         long total = productoRepository.count();
-        var resultado = productoRepository.buscar("%' or '1'='1%", true, PageRequest.of(0, 50));
+        var resultado = productoRepository.buscar("%' or '1'='1%", true, false, PageRequest.of(0, 50));
         assertThat(resultado.getTotalElements()).isZero();
         assertThat(productoRepository.count()).isEqualTo(total);
     }

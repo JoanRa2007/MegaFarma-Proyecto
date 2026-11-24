@@ -11,6 +11,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import pe.edu.upeu.megafarma.app.core.TAMANIO_TABLA
+import pe.edu.upeu.megafarma.app.core.rangoMostrado
 import pe.edu.upeu.megafarma.app.core.soles
 import pe.edu.upeu.megafarma.app.domain.model.GrupoReporte
 import pe.edu.upeu.megafarma.app.domain.model.ReporteInventario
@@ -20,6 +22,7 @@ import pe.edu.upeu.megafarma.app.presentation.componentes.GraficoBarras
 import pe.edu.upeu.megafarma.app.presentation.componentes.GraficoDona
 import pe.edu.upeu.megafarma.app.presentation.componentes.GrillaTarjetas
 import pe.edu.upeu.megafarma.app.presentation.componentes.Panel
+import pe.edu.upeu.megafarma.app.presentation.componentes.Paginador
 import pe.edu.upeu.megafarma.app.presentation.componentes.Titulo
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.componentes.nombreBonito
@@ -37,7 +40,16 @@ import kotlin.math.roundToLong
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ResumenVentasVista(r: ResumenVentas, inventario: ReporteInventario?) {
+fun ResumenVentasVista(
+    r: ResumenVentas,
+    inventario: ReporteInventario?,
+    paginaSerie: Int,
+    onSerieAnterior: () -> Unit,
+    onSerieSiguiente: () -> Unit,
+    paginaTop: Int,
+    onTopAnterior: () -> Unit,
+    onTopSiguiente: () -> Unit
+) {
     val tramo = when (r.agrupacion) {
         "HORA" -> "Hora"
         "MES" -> "Mes"
@@ -94,12 +106,12 @@ fun ResumenVentasVista(r: ResumenVentas, inventario: ReporteInventario?) {
         Panel(Modifier.fillMaxWidth()) {
             Titulo("Detalle por ${tramo.lowercase()}")
             Spacer(Modifier.height(8.dp))
-            val conVentas = r.serie.filter { it.cantidadVentas > 0 }
-            if (conVentas.isEmpty()) {
+            val filas = r.serieTabla.elementos
+            if (filas.isEmpty()) {
                 Vacio("Sin ventas en el período")
             } else {
                 Encabezado(listOf(tramo to 1.2f, "Ventas" to 0.8f, "Total" to 1.2f, "Promedio" to 1.1f, "% del total" to 1f))
-                conVentas.forEach { g ->
+                filas.forEach { g ->
                     Fila(listOf(
                         g.etiqueta to 1.2f,
                         g.cantidadVentas.toString() to 0.8f,
@@ -108,8 +120,13 @@ fun ResumenVentasVista(r: ResumenVentas, inventario: ReporteInventario?) {
                         "${porcentaje(g.total, r.totalVendido)} %" to 1f
                     ))
                 }
-                Fila(listOf("Total" to 1.2f, r.cantidadVentas.toString() to 0.8f, r.totalVendido.soles() to 1.2f,
-                    r.ticketPromedio.soles() to 1.1f, "100 %" to 1f), negrita = true)
+                Paginador(
+                    pagina = paginaSerie,
+                    totalPaginas = r.serieTabla.totalPaginas,
+                    onAnterior = onSerieAnterior,
+                    onSiguiente = onSerieSiguiente,
+                    detalle = rangoMostrado(paginaSerie, TAMANIO_TABLA, filas.size, r.serieTabla.totalElementos)
+                )
             }
         }
 
@@ -135,16 +152,24 @@ fun ResumenVentasVista(r: ResumenVentas, inventario: ReporteInventario?) {
         Panel(Modifier.fillMaxWidth()) {
             Titulo("Productos más vendidos")
             Spacer(Modifier.height(8.dp))
-            if (r.topProductos.isEmpty()) {
+            val filas = r.topProductosTabla.elementos
+            if (filas.isEmpty()) {
                 Vacio("Sin ventas en el período")
             } else {
                 Encabezado(listOf("#" to 0.4f, "Producto" to 2.6f, "Unidades" to 1f, "Importe" to 1.1f, "% ventas" to 0.9f))
-                r.topProductos.forEachIndexed { i, p ->
+                filas.forEachIndexed { i, p ->
                     Fila(listOf(
-                        "${i + 1}" to 0.4f, p.nombre to 2.6f, p.unidades.toString() to 1f,
+                        "${paginaTop * TAMANIO_TABLA + i + 1}" to 0.4f, p.nombre to 2.6f, p.unidades.toString() to 1f,
                         p.importe.soles() to 1.1f, "${porcentaje(p.importe, r.totalVendido)} %" to 0.9f
                     ))
                 }
+                Paginador(
+                    pagina = paginaTop,
+                    totalPaginas = r.topProductosTabla.totalPaginas,
+                    onAnterior = onTopAnterior,
+                    onSiguiente = onTopSiguiente,
+                    detalle = rangoMostrado(paginaTop, TAMANIO_TABLA, filas.size, r.topProductosTabla.totalElementos)
+                )
             }
         }
 

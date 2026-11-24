@@ -16,6 +16,7 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
 import pe.edu.upeu.megafarma.app.core.Resultado
+import pe.edu.upeu.megafarma.app.core.TAMANIO_TABLA
 import pe.edu.upeu.megafarma.app.data.local.SesionManager
 import pe.edu.upeu.megafarma.app.data.remote.dto.CategoriaDto
 import pe.edu.upeu.megafarma.app.data.remote.dto.ClienteDto
@@ -47,9 +48,6 @@ import pe.edu.upeu.megafarma.app.data.remote.dto.VentaRequestDto
  * Cada metodo devuelve Resultado: Exito con el JSON ya convertido, o Error con
  * el mensaje que envio el servidor (por ejemplo "Stock insuficiente...").
  */
-/* Eventos por pagina de la bitacora de seguridad. */
-const val TAMANIO_BITACORA = 10
-
 class MegafarmaApi(
     private val client: HttpClient,
     private val sesion: SesionManager
@@ -78,11 +76,24 @@ class MegafarmaApi(
     }
 
     // ---------- Catalogo ----------
-    suspend fun productos(texto: String, incluirInactivos: Boolean): Resultado<PaginaDto<ProductoDto>> = llamar {
+    /* Busqueda rapida para Caja: trae hasta 100 activos, sin paginar. */
+    suspend fun productos(texto: String, incluirInactivos: Boolean): Resultado<PaginaDto<ProductoDto>> =
+        productos(texto, incluirInactivos, soloInactivos = false, pagina = 0, tamanio = 100)
+
+    /* Tabla de productos: 10 filas por pagina, filtradas en el servidor. */
+    suspend fun productos(
+        texto: String,
+        incluirInactivos: Boolean,
+        soloInactivos: Boolean,
+        pagina: Int,
+        tamanio: Int = TAMANIO_TABLA
+    ): Resultado<PaginaDto<ProductoDto>> = llamar {
         get(url("/productos")) {
             if (texto.isNotBlank()) parameter("q", texto)
             parameter("incluirInactivos", incluirInactivos)
-            parameter("tamanio", 100)
+            parameter("soloInactivos", soloInactivos)
+            parameter("pagina", pagina)
+            parameter("tamanio", tamanio)
         }
     }
 
@@ -178,7 +189,14 @@ class MegafarmaApi(
     }
 
     // ---------- Usuarios (solo ADMIN) ----------
-    suspend fun usuarios(): Resultado<List<UsuarioDto>> = llamar { get(url("/usuarios")) }
+    /* Tabla de usuarios: busqueda y paginacion en servidor, 10 por pagina. */
+    suspend fun usuarios(texto: String, pagina: Int, tamanio: Int = TAMANIO_TABLA): Resultado<PaginaDto<UsuarioDto>> = llamar {
+        get(url("/usuarios")) {
+            if (texto.isNotBlank()) parameter("q", texto)
+            parameter("pagina", pagina)
+            parameter("tamanio", tamanio)
+        }
+    }
 
     suspend fun roles(): Resultado<List<RolDto>> = llamar { get(url("/roles")) }
 
@@ -209,7 +227,7 @@ class MegafarmaApi(
             if (usuario.isNotBlank()) parameter("usuario", usuario)
             if (accion.isNotBlank()) parameter("accion", accion)
             parameter("pagina", pagina)
-            parameter("tamanio", TAMANIO_BITACORA)
+            parameter("tamanio", TAMANIO_TABLA)
         }
     }
 
@@ -218,10 +236,19 @@ class MegafarmaApi(
         get(url("/dashboard")) { parameter("periodo", periodo) }
     }
 
-    suspend fun reporteResumen(tipo: String, fecha: String?): Resultado<ResumenVentasDto> = llamar {
+    suspend fun reporteResumen(
+        tipo: String,
+        fecha: String?,
+        paginaSerie: Int = 0,
+        paginaTop: Int = 0,
+        tamanio: Int = TAMANIO_TABLA
+    ): Resultado<ResumenVentasDto> = llamar {
         get(url("/reportes/resumen")) {
             parameter("tipo", tipo)
             if (!fecha.isNullOrBlank()) parameter("fecha", fecha)
+            parameter("paginaSerie", paginaSerie)
+            parameter("paginaTop", paginaTop)
+            parameter("tamanio", tamanio)
         }
     }
 

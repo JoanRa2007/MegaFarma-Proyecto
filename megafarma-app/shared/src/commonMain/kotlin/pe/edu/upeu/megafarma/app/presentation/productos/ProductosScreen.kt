@@ -11,6 +11,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
+import pe.edu.upeu.megafarma.app.core.TAMANIO_TABLA
+import pe.edu.upeu.megafarma.app.core.rangoMostrado
 import pe.edu.upeu.megafarma.app.core.soles
 import pe.edu.upeu.megafarma.app.domain.model.Permiso
 import pe.edu.upeu.megafarma.app.domain.model.Producto
@@ -25,6 +27,7 @@ import pe.edu.upeu.megafarma.app.presentation.componentes.FilaTabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Iconos
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Pastilla
+import pe.edu.upeu.megafarma.app.presentation.componentes.Paginador
 import pe.edu.upeu.megafarma.app.presentation.componentes.Tabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.tema.ColoresEstado
@@ -55,27 +58,13 @@ fun ProductosScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Filtros por estado con su contador: asi se entiende que hacen aunque no haya desactivados.
-        val activos = estado.productos.count { it.activo }
-        val desactivados = estado.productos.size - activos
-        val filtro = if (puedeEscribir) estado.filtro else FiltroEstado.ACTIVOS
-        val visibles = estado.productos.filter {
-            when (filtro) {
-                FiltroEstado.ACTIVOS -> it.activo
-                FiltroEstado.DESACTIVADOS -> !it.activo
-                FiltroEstado.TODOS -> true
-            }
-        }
+        // El filtro se aplica en el servidor; la pagina siempre trae hasta 10 filas.
+        val filtro = estado.filtro
         if (puedeEscribir) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     FiltroEstado.entries.forEach { f ->
-                        val n = when (f) {
-                            FiltroEstado.ACTIVOS -> activos
-                            FiltroEstado.DESACTIVADOS -> desactivados
-                            FiltroEstado.TODOS -> estado.productos.size
-                        }
-                        FilterChip(selected = filtro == f, onClick = { viewModel.filtrar(f) }, label = { Text("${f.etiqueta} ($n)") })
+                        FilterChip(selected = filtro == f, onClick = { viewModel.filtrar(f) }, label = { Text(f.etiqueta) })
                     }
                 }
                 Spacer(Modifier.width(8.dp))
@@ -92,13 +81,13 @@ fun ProductosScreen(
         when {
             estado.cargando && estado.productos.isEmpty() -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
-            visibles.isEmpty() -> Vacio(
+            estado.productos.isEmpty() -> Vacio(
                 if (filtro == FiltroEstado.DESACTIVADOS && estado.texto.isBlank()) "No hay productos desactivados"
                 else "No se encontraron productos"
             )
             else -> {
                 Text(
-                    "${visibles.size} producto(s) · toque una fila para ver su stock por lote",
+                    "Toque una fila para ver su stock por lote",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -108,7 +97,7 @@ fun ProductosScreen(
                             if (puedeEscribir) listOf(Columna("", 0.9f)) else emptyList()
                     )
                     LazyColumn {
-                        items(visibles, key = { it.id }) { producto ->
+                        items(estado.productos, key = { it.id }) { producto ->
                             FilaProducto(
                                 producto = producto,
                                 puedeEscribir = puedeEscribir,
@@ -120,6 +109,13 @@ fun ProductosScreen(
                         }
                     }
                 }
+                Paginador(
+                    pagina = estado.pagina,
+                    totalPaginas = estado.totalPaginas,
+                    onAnterior = viewModel::paginaAnterior,
+                    onSiguiente = viewModel::paginaSiguiente,
+                    detalle = rangoMostrado(estado.pagina, TAMANIO_TABLA, estado.productos.size, estado.totalElementos)
+                )
             }
         }
     }

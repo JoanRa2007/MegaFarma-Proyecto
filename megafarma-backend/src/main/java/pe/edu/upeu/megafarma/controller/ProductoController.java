@@ -64,14 +64,15 @@ public class ProductoController {
             // @RequestParam: toma el valor de la query string: ?nombre=valor
             @RequestParam(required = false) @jakarta.validation.constraints.Pattern(regexp = "^(?!.*--)[\\p{L}\\p{N}\\s.,'()/%+-]{0,100}$", message = "La búsqueda contiene caracteres no permitidos (máximo 100 letras, números y . , ' ( ) / % + -, sin --)") String q,
             @RequestParam(defaultValue = "false") boolean incluirInactivos,
+            @RequestParam(defaultValue = "false") boolean soloInactivos,
             @RequestParam(defaultValue = "0") @jakarta.validation.constraints.Min(0) int pagina,
-            @RequestParam(defaultValue = "20") @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(100) int tamanio,
+            @RequestParam(defaultValue = "10") @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(100) int tamanio,
             @RequestParam(defaultValue = "nombre") @jakarta.validation.constraints.Pattern(regexp = "^[a-zA-Z]{1,20}$", message = "Campo de orden inválido") String ordenarPor,
             @RequestParam(defaultValue = "asc") @jakarta.validation.constraints.Pattern(regexp = "^(?i)(asc|desc)$", message = "La dirección debe ser asc o desc") String direccion) {
 
         // responde HTTP 200 OK; el objeto se convierte a JSON
         return ResponseEntity.ok(productoService.listar(
-                q, incluirInactivos, pagina, tamanio, ordenarPor, direccion));
+                q, incluirInactivos, soloInactivos, pagina, tamanio, ordenarPor, direccion));
     }
 
     @GetMapping("/cambios")

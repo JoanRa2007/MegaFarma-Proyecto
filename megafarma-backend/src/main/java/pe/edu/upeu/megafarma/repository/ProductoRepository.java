@@ -39,6 +39,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     @Query("""
             SELECT p FROM Producto p
             WHERE (:incluirInactivos = true OR p.activo = true)
+              AND (:soloInactivos = false OR p.activo = false)
               AND (LOWER(p.codigo) LIKE :patron
                    OR LOWER(p.nombre) LIKE :patron
                    OR LOWER(COALESCE(p.principioActivo, '')) LIKE :patron)
@@ -46,5 +47,6 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     Page<Producto> buscar(@Param("patron") String patron,
                           // @Param: une el parametro Java con el :nombre usado dentro de la consulta
                           @Param("incluirInactivos") boolean incluirInactivos,
+                          @Param("soloInactivos") boolean soloInactivos,
                           Pageable pageable);
 }

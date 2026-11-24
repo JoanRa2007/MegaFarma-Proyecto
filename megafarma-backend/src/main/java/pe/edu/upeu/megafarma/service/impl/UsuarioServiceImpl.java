@@ -7,10 +7,13 @@ package pe.edu.upeu.megafarma.service.impl;
  */
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.upeu.megafarma.dto.PaginaResponseDTO;
 import pe.edu.upeu.megafarma.dto.auth.RolResponseDTO;
 import pe.edu.upeu.megafarma.dto.auth.UsuarioRequestDTO;
 import pe.edu.upeu.megafarma.dto.auth.UsuarioResponseDTO;
@@ -23,13 +26,17 @@ import pe.edu.upeu.megafarma.repository.RolRepository;
 import pe.edu.upeu.megafarma.repository.UsuarioRepository;
 import pe.edu.upeu.megafarma.security.UsuarioActual;
 import pe.edu.upeu.megafarma.service.UsuarioService;
+import pe.edu.upeu.megafarma.util.PaginacionUtil;
 
 import java.util.List;
+import java.util.Set;
 
 // @Service: Spring crea un unico objeto de esta clase y lo inyecta donde se necesite
 @Service
 // implements: esta clase cumple el contrato (los metodos) de esa interfaz
 public class UsuarioServiceImpl implements UsuarioService {
+
+    private static final Set<String> CAMPOS_ORDEN = Set.of("id", "username", "nombreCompleto");
 
     // dependencia: 'final' obliga a recibirla en el constructor (inyeccion de dependencias)
     private final UsuarioRepository usuarioRepository;
@@ -56,11 +63,12 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     // @Transactional: todo el metodo es una transaccion: si lanza excepcion se deshacen los cambios (rollback)
     @Transactional(readOnly = true)
-    public List<UsuarioResponseDTO> listar() {
-        // stream: recorre la coleccion aplicando map/filter y junta el resultado
-        return usuarioRepository.findAll(Sort.by("username")).stream()
-                .map(this::toResponse)
-                .toList();
+    public PaginaResponseDTO<UsuarioResponseDTO> listar(String q, int pagina, int tamanio) {
+        Pageable pageable = PaginacionUtil.crear(
+                pagina, tamanio, "username", "asc", CAMPOS_ORDEN, "username");
+        Page<Usuario> resultado = usuarioRepository.buscar(PaginacionUtil.patron(q), pageable);
+        return PaginaResponseDTO.de(resultado,
+                resultado.getContent().stream().map(this::toResponse).toList());
     }
 
     @Override
