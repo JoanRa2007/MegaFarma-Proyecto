@@ -13,6 +13,7 @@ sonar {
     properties {
         property("sonar.projectKey", "megafarma-app")
         property("sonar.projectName", "Megafarma App")
+        property("sonar.projectVersion", "1.4.0")
         property("sonar.host.url", "http://localhost:9000")
         property("sonar.exclusions", "**/build/**,**/generated/**,**/iosApp/**")
     }
