@@ -23,6 +23,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -327,6 +328,29 @@ class PuntoDeVentaTest {
                         .content("{\"productoId\":%d,\"numeroLote\":\"%s\",\"fechaVencimiento\":\"%s\",\"cantidad\":%d}"
                                 .formatted(producto, lote, vence, cantidad)))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("las tablas del menú se paginan en servidor: máximo 10 filas por página")
+    void tablasAgrupadasDeDiez() throws Exception {
+        MvcResult productos = mvc.perform(get("/api/v1/productos")
+                        .param("incluirInactivos", "true").header("Authorization", admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tamanio").value(10))
+                .andReturn();
+        MvcResult usuarios = mvc.perform(get("/api/v1/usuarios").header("Authorization", admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tamanio").value(10))
+                .andReturn();
+        MvcResult reportes = mvc.perform(get("/api/v1/reportes/resumen")
+                        .param("tipo", "ANIO").header("Authorization", admin))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat((List<Object>) JsonPath.read(cuerpo(productos), "$.contenido")).hasSizeLessThanOrEqualTo(10);
+        assertThat((List<Object>) JsonPath.read(cuerpo(usuarios), "$.contenido")).hasSizeLessThanOrEqualTo(10);
+        assertThat((List<Object>) JsonPath.read(cuerpo(reportes), "$.serieTabla.contenido")).hasSizeLessThanOrEqualTo(10);
+        assertThat((List<Object>) JsonPath.read(cuerpo(reportes), "$.topProductosTabla.contenido")).hasSizeLessThanOrEqualTo(10);
     }
 
     private int stockDisponible(long producto) throws Exception {

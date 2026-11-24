@@ -20,6 +20,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +29,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import pe.edu.upeu.megafarma.app.core.Resultado
+import pe.edu.upeu.megafarma.app.core.TAMANIO_TABLA
+import pe.edu.upeu.megafarma.app.core.rangoMostrado
 import pe.edu.upeu.megafarma.app.domain.model.DatosUsuario
 import pe.edu.upeu.megafarma.app.domain.model.Usuario
 import pe.edu.upeu.megafarma.app.domain.repository.UsuarioRepository
@@ -39,6 +43,7 @@ import pe.edu.upeu.megafarma.app.presentation.componentes.Columna
 import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoTabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.FilaTabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Iconos
+import pe.edu.upeu.megafarma.app.presentation.componentes.Paginador
 import pe.edu.upeu.megafarma.app.presentation.componentes.Tabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.componentes.Campo
@@ -71,7 +76,11 @@ data class UsuariosUiState(
     /* Cuenta que espera confirmacion para restablecer su contrasena. */
     val porRestablecer: Usuario? = null,
     /* Contrasena temporal recien generada: se muestra una sola vez al admin. */
-    val temporal: Pair<Usuario, String>? = null
+    val temporal: Pair<Usuario, String>? = null,
+    /* Paginacion de la tabla, con busqueda y 10 filas por pagina en servidor. */
+    val pagina: Int = 0,
+    val totalPaginas: Int = 0,
+    val totalElementos: Long = 0
 )
 
 /* Administracion de usuarios (HU-22 a HU-24), solo ADMIN. */
@@ -80,14 +89,36 @@ class UsuariosViewModel(private val repositorio: UsuarioRepository) : ViewModel(
     private val _estado = MutableStateFlow(UsuariosUiState())
     val estado: StateFlow<UsuariosUiState> = _estado.asStateFlow()
 
-    fun cargar() {
+    private var busqueda: Job? = null
+
+    fun cargar(pagina: Int = _estado.value.pagina, cancelarBusqueda: Boolean = true) {
+        if (cancelarBusqueda) busqueda?.cancel()
         _estado.update { it.copy(cargando = true, error = null) }
         viewModelScope.launch {
-            when (val r = repositorio.listar()) {
-                is Resultado.Exito -> _estado.update { it.copy(cargando = false, usuarios = r.datos) }
+            val actual = _estado.value
+            when (val r = repositorio.listar(actual.texto, pagina, TAMANIO_TABLA)) {
+                is Resultado.Exito -> _estado.update {
+                    it.copy(
+                        cargando = false,
+                        usuarios = r.datos.elementos,
+                        pagina = r.datos.pagina,
+                        totalPaginas = r.datos.totalPaginas,
+                        totalElementos = r.datos.totalElementos
+                    )
+                }
                 is Resultado.Error -> _estado.update { it.copy(cargando = false, error = r.mensaje) }
             }
         }
+    }
+
+    fun paginaSiguiente() {
+        val e = _estado.value
+        if (e.pagina + 1 < e.totalPaginas) cargar(e.pagina + 1)
+    }
+
+    fun paginaAnterior() {
+        val e = _estado.value
+        if (e.pagina > 0) cargar(e.pagina - 1)
     }
 
     fun nuevo() = _estado.update { it.copy(editando = Usuario(0, "", "", "VENDEDOR", true, false), errorFormulario = null) }
@@ -98,7 +129,15 @@ class UsuariosViewModel(private val repositorio: UsuarioRepository) : ViewModel(
 
     fun cerrarAviso() = _estado.update { it.copy(aviso = null) }
 
-    fun buscar(texto: String) = _estado.update { it.copy(texto = texto) }
+    /* Busca en el servidor 350 ms despues de la ultima tecla. */
+    fun buscar(texto: String) {
+        _estado.update { it.copy(texto = texto, pagina = 0) }
+        busqueda?.cancel()
+        busqueda = viewModelScope.launch {
+            delay(350)
+            cargar(0, cancelarBusqueda = false)
+        }
+    }
 
     fun pedirDesactivar(usuario: Usuario) = _estado.update { it.copy(porDesactivar = usuario) }
 
@@ -189,11 +228,7 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
     val estado by viewModel.estado.collectAsState()
     LaunchedEffect(Unit) { viewModel.cargar() }
 
-    val q = estado.texto.trim().lowercase()
-    val visibles = estado.usuarios.filter {
-        q.isEmpty() || it.nombreCompleto.lowercase().contains(q) || it.username.lowercase().contains(q) ||
-            it.rol.lowercase().contains(q) || (it.dni ?: "").contains(q)
-    }
+    val q = estado.texto.trim()
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -216,13 +251,8 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
         when {
             estado.cargando && estado.usuarios.isEmpty() -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
-            visibles.isEmpty() -> Vacio(if (q.isEmpty()) "No hay usuarios registrados" else "Ningún usuario coincide con \"${estado.texto}\"")
+            estado.usuarios.isEmpty() -> Vacio(if (q.isEmpty()) "No hay usuarios registrados" else "Ningún usuario coincide con \"${estado.texto}\"")
             else -> {
-                Text(
-                    "${visibles.size} de ${estado.usuarios.size} usuario(s)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
                 BoxWithConstraints(Modifier.weight(1f)) {
                     val ancho = maxWidth >= ANCHO_CELULAR
                     Tabla {
@@ -232,13 +262,20 @@ fun UsuariosScreen(viewModel: UsuariosViewModel = koinViewModel()) {
                             else listOf(Columna("Trabajador", 3f), Columna("", 1.2f))
                         )
                         LazyColumn {
-                            items(visibles, key = { it.id }) { u ->
+                            items(estado.usuarios, key = { it.id }) { u ->
                                 FilaUsuario(u, ancho, onEditar = { viewModel.editar(u) }, onRestablecer = { viewModel.pedirRestablecer(u) },
                                     onDesactivar = { viewModel.pedirDesactivar(u) }, onActivar = { viewModel.cambiarEstado(u) })
                             }
                         }
                     }
                 }
+                Paginador(
+                    pagina = estado.pagina,
+                    totalPaginas = estado.totalPaginas,
+                    onAnterior = viewModel::paginaAnterior,
+                    onSiguiente = viewModel::paginaSiguiente,
+                    detalle = rangoMostrado(estado.pagina, TAMANIO_TABLA, estado.usuarios.size, estado.totalElementos)
+                )
             }
         }
     }

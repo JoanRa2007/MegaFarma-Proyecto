@@ -8,6 +8,7 @@ import pe.edu.upeu.megafarma.app.domain.model.LineaVenta
 import pe.edu.upeu.megafarma.app.domain.model.Lote
 import pe.edu.upeu.megafarma.app.domain.model.MedioPago
 import pe.edu.upeu.megafarma.app.domain.model.NuevaEntrada
+import pe.edu.upeu.megafarma.app.domain.model.Pagina
 import pe.edu.upeu.megafarma.app.domain.model.PaginaVentas
 import pe.edu.upeu.megafarma.app.domain.model.Producto
 import pe.edu.upeu.megafarma.app.domain.model.ProductoVendido
@@ -37,6 +38,13 @@ interface AuthRepository {
 
 interface ProductoRepository {
     suspend fun buscar(texto: String, incluirInactivos: Boolean = false): Resultado<List<Producto>>
+    suspend fun buscarPagina(
+        texto: String,
+        incluirInactivos: Boolean,
+        soloInactivos: Boolean,
+        pagina: Int,
+        tamanio: Int
+    ): Resultado<Pagina<Producto>>
     suspend fun categorias(): Resultado<List<Categoria>>
     suspend fun guardar(id: Long?, datos: DatosProducto): Resultado<Producto>
     suspend fun desactivar(id: Long): Resultado<Unit>
@@ -66,7 +74,13 @@ interface ReporteRepository {
     suspend fun masVendidos(): Resultado<List<ProductoVendido>>
     suspend fun inventario(): Resultado<ReporteInventario>
     suspend fun dashboard(periodo: pe.edu.upeu.megafarma.app.domain.model.Periodo): Resultado<pe.edu.upeu.megafarma.app.domain.model.ResumenVentas>
-    suspend fun resumen(tipo: pe.edu.upeu.megafarma.app.domain.model.Periodo, fecha: String?): Resultado<pe.edu.upeu.megafarma.app.domain.model.ResumenVentas>
+    suspend fun resumen(
+        tipo: pe.edu.upeu.megafarma.app.domain.model.Periodo,
+        fecha: String?,
+        paginaSerie: Int,
+        paginaTop: Int,
+        tamanio: Int
+    ): Resultado<pe.edu.upeu.megafarma.app.domain.model.ResumenVentas>
 }
 
 interface ClienteRepository {
@@ -75,7 +89,7 @@ interface ClienteRepository {
 }
 
 interface UsuarioRepository {
-    suspend fun listar(): Resultado<List<pe.edu.upeu.megafarma.app.domain.model.Usuario>>
+    suspend fun listar(texto: String, pagina: Int, tamanio: Int): Resultado<Pagina<pe.edu.upeu.megafarma.app.domain.model.Usuario>>
     suspend fun roles(): Resultado<List<pe.edu.upeu.megafarma.app.domain.model.Rol>>
     suspend fun guardar(id: Long?, datos: pe.edu.upeu.megafarma.app.domain.model.DatosUsuario): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>
     suspend fun cambiarEstado(id: Long, activo: Boolean): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>

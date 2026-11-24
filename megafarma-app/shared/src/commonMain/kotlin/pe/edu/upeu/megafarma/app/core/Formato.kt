@@ -17,6 +17,9 @@ fun Double.soles(): String {
 /* 1234.5 -> "1234.50": monto para un campo de texto (sin "S/" ni comas). */
 fun Double.montoTexto(): String = soles().removePrefix("S/ ").replace(",", "")
 
+/* Tamaño único de todas las tablas paginadas de la app (10 filas por página). */
+const val TAMANIO_TABLA = 10
+
 /* Texto "Mostrando 11-20 de 57" para el pie de una tabla paginada. */
 fun rangoMostrado(pagina: Int, tamanio: Int, enPagina: Int, total: Long): String =
     if (total == 0L) "Sin registros"

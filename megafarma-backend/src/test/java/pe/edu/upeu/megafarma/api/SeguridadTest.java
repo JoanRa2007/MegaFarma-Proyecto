@@ -6,7 +6,8 @@ package pe.edu.upeu.megafarma.api;
  *  - inyeccion SQL en busquedas (rechazada y, aunque pasara, inofensiva),
  *  - validacion de parametros, cabeceras de seguridad, fuerza bruta (429),
  *  - revocacion del token al cerrar sesion, tokens de otro emisor,
- *  - politica de contrasenas, bitacora de auditoria y Swagger no expuesto.
+ *  - politica de contrasenas, bitacora de auditoria y Swagger no expuesto,
+ *  - clave temporal: el servicio bloquea todo menos el cambio de clave.
  */
 
 import com.jayway.jsonpath.JsonPath;
@@ -40,6 +41,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -103,7 +105,7 @@ class SeguridadTest {
     @DisplayName("aunque el texto llegara a la consulta, es un parámetro: no altera el SQL")
     void consultasParametrizadas() {
         long total = productoRepository.count();
-        var resultado = productoRepository.buscar("%' or '1'='1%", true, PageRequest.of(0, 50));
+        var resultado = productoRepository.buscar("%' or '1'='1%", true, false, PageRequest.of(0, 50));
         assertThat(resultado.getTotalElements()).isZero();
         assertThat(productoRepository.count()).isEqualTo(total);
     }
@@ -198,6 +200,33 @@ class SeguridadTest {
                         .content("{\"username\":\"debil1\",\"password\":\"soloLetras\",\"nombreCompleto\":\"Clave Débil\",\"rol\":\"VENDEDOR\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.validationErrors.password", containsString("letra y un número")));
+    }
+
+    @Test
+    @DisplayName("con una clave temporal el servicio solo permite cambiarla: lo demás responde 403")
+    void claveTemporalObligaACambiarla() throws Exception {
+        String admin = bearer("admin", "Admin123");
+        String username = "nuevo" + UUID.randomUUID().toString().substring(0, 8);
+        MvcResult creado = mvc.perform(post("/api/v1/usuarios").header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"%s\",\"nombreCompleto\":\"Cuenta Nueva\",\"rol\":\"VENDEDOR\"}"
+                                .formatted(username)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String temporal = JsonPath.read(creado.getResponse().getContentAsString(StandardCharsets.UTF_8),
+                "$.passwordTemporal");
+
+        String token = bearer(username, temporal);
+        mvc.perform(get("/api/v1/productos").header("Authorization", token)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/auth/me").header("Authorization", token)).andExpect(status().isOk());
+
+        mvc.perform(put("/api/v1/auth/password").header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"actual\":\"%s\",\"nueva\":\"NuevaClave123\"}".formatted(temporal)))
+                .andExpect(status().is2xxSuccessful());
+
+        // Tras cambiarla, el mismo token ya tiene los permisos de su rol.
+        mvc.perform(get("/api/v1/productos").header("Authorization", token)).andExpect(status().isOk());
     }
 
     // ===================== Auditoría (OWASP A09) =====================

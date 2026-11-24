@@ -250,7 +250,9 @@ data class ResumenVentasDto(
     val boletasEmitidas: Int = 0,
     val facturasEmitidas: Int = 0,
     val porVendedor: List<GrupoDto> = emptyList(),
-    val serieAnterior: List<GrupoDto> = emptyList()
+    val serieAnterior: List<GrupoDto> = emptyList(),
+    val serieTabla: PaginaDto<GrupoDto> = PaginaDto(),
+    val topProductosTabla: PaginaDto<MasVendidoDto> = PaginaDto()
 )
 
 @Serializable

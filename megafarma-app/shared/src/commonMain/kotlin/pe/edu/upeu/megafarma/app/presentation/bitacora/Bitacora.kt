@@ -22,7 +22,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import pe.edu.upeu.megafarma.app.core.Resultado
 import pe.edu.upeu.megafarma.app.core.fechaHora
 import pe.edu.upeu.megafarma.app.core.rangoMostrado
-import pe.edu.upeu.megafarma.app.data.remote.TAMANIO_BITACORA
+import pe.edu.upeu.megafarma.app.core.TAMANIO_TABLA
 import pe.edu.upeu.megafarma.app.domain.model.RegistroAuditoria
 import pe.edu.upeu.megafarma.app.domain.repository.UsuarioRepository
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
@@ -194,7 +194,7 @@ fun BitacoraScreen(viewModel: BitacoraViewModel = koinViewModel()) {
         Paginador(
             estado.pagina, estado.totalPaginas,
             { viewModel.cargar(estado.pagina - 1) }, { viewModel.cargar(estado.pagina + 1) },
-            detalle = rangoMostrado(estado.pagina, TAMANIO_BITACORA, estado.registros.size, estado.totalElementos)
+            detalle = rangoMostrado(estado.pagina, TAMANIO_TABLA, estado.registros.size, estado.totalElementos)
         )
     }
 }
