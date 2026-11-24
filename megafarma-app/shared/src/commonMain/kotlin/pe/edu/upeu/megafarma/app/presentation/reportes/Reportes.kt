@@ -28,7 +28,8 @@ import pe.edu.upeu.megafarma.app.domain.model.ResumenVentas
 import pe.edu.upeu.megafarma.app.domain.repository.ReporteRepository
 import pe.edu.upeu.megafarma.app.presentation.componentes.CampoFecha
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
-import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoSeccion
+import pe.edu.upeu.megafarma.app.presentation.componentes.CabeceraResumen
+import pe.edu.upeu.megafarma.app.presentation.componentes.PastillaPeriodo
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Titulo
 
@@ -84,18 +85,22 @@ fun ReportesScreen(viewModel: ReportesViewModel = koinViewModel()) {
     LaunchedEffect(Unit) { viewModel.cargar() }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        EncabezadoSeccion(
-            "Reportes",
-            estado.resumen?.let { "${it.titulo} · del ${it.desde.fechaCorta()} al ${it.hasta.fechaCorta()}" }
-                ?: "Análisis de ventas por día, mes o año"
-        ) {
-            if (estado.cargando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(Periodo.DIA, Periodo.MES, Periodo.ANIO).forEach { t ->
-                FilterChip(selected = estado.tipo == t, onClick = { viewModel.elegirTipo(t) }, label = { Text("Por ${t.etiqueta.lowercase()}") })
+        // Cabecera con el periodo del reporte (sin repetir el titulo de la barra superior).
+        val r = estado.resumen
+        CabeceraResumen(
+            etiqueta = "Análisis de ventas",
+            titulo = r?.titulo ?: "Reporte por ${estado.tipo.etiqueta.lowercase()}",
+            detalle = r?.let {
+                if (it.desde == it.hasta) "${it.totalVendido.soles()} vendidos en ${it.cantidadVentas} venta(s)"
+                else "Del ${it.desde.fechaCorta()} al ${it.hasta.fechaCorta()} · ${it.totalVendido.soles()} en ${it.cantidadVentas} venta(s)"
+            },
+            cargando = estado.cargando,
+            opciones = {
+                listOf(Periodo.DIA, Periodo.MES, Periodo.ANIO).forEach { t ->
+                    PastillaPeriodo("Por ${t.etiqueta.lowercase()}", estado.tipo == t) { viewModel.elegirTipo(t) }
+                }
             }
-        }
+        )
         CampoFecha(
             estado.fecha,
             { viewModel.cambiarFecha(it); viewModel.cargar() },
