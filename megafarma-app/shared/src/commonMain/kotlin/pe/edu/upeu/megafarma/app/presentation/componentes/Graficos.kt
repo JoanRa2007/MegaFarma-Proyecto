@@ -278,53 +278,44 @@ fun GraficoDona(grupos: List<GrupoReporte>, centro: String? = null, tamano: Dp =
     val total = grupos.sumOf { it.total }
     val colores = grupos.indices.map { PALETA_GRAFICOS[it % PALETA_GRAFICOS.size] }
     val pista = MaterialTheme.colorScheme.surfaceVariant
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val angosto = maxWidth < 380.dp
-        val dona = @Composable {
-            Box(Modifier.size(tamano), contentAlignment = Alignment.Center) {
-                Canvas(Modifier.fillMaxSize()) {
-                    val grosor = size.minDimension * 0.18f
-                    val diametro = size.minDimension - grosor
-                    val esquina = Offset((size.width - diametro) / 2, (size.height - diametro) / 2)
-                    drawArc(pista, 0f, 360f, false, esquina, Size(diametro, diametro), style = Stroke(grosor))
-                    var inicio = -90f
-                    grupos.forEachIndexed { i, g ->
-                        val barrido = (g.total / total * 360).toFloat()
-                        drawArc(colores[i], inicio, (barrido - 1.5f).coerceAtLeast(0.5f), false, esquina,
-                            Size(diametro, diametro), style = Stroke(grosor))
-                        inicio += barrido
-                    }
-                }
-                if (centro != null) {
-                    Text(centro, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                }
-            }
-        }
-        val leyenda = @Composable { m: Modifier ->
-            Column(m, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    // Dona arriba y leyenda debajo. Sin BoxWithConstraints: la dona va dentro de tarjetas
+    // de igual alto (GrillaTarjetas), que miden su contenido por adelantado, y ese
+    // componente no admite esa medicion (la app se cerraba al abrir el Dashboard).
+    Column(
+        Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(Modifier.size(tamano), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val grosor = size.minDimension * 0.18f
+                val diametro = size.minDimension - grosor
+                val esquina = Offset((size.width - diametro) / 2, (size.height - diametro) / 2)
+                drawArc(pista, 0f, 360f, false, esquina, Size(diametro, diametro), style = Stroke(grosor))
+                var inicio = -90f
                 grupos.forEachIndexed { i, g ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(10.dp).background(colores[i], CircleShape))
-                        Spacer(Modifier.width(8.dp))
-                        Text(nombreBonito(g.etiqueta), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("${porcentaje(g.total, total)} %", style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold)
-                        Text(g.total.soles(), Modifier.width(86.dp), style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.End, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    val barrido = (g.total / total * 360).toFloat()
+                    drawArc(colores[i], inicio, (barrido - 1.5f).coerceAtLeast(0.5f), false, esquina,
+                        Size(diametro, diametro), style = Stroke(grosor))
+                    inicio += barrido
                 }
             }
-        }
-        if (angosto) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                dona()
-                leyenda(Modifier.fillMaxWidth())
+            if (centro != null) {
+                Text(centro, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                dona()
-                leyenda(Modifier.weight(1f))
+        }
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            grupos.forEachIndexed { i, g ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).background(colores[i], CircleShape))
+                    Spacer(Modifier.width(8.dp))
+                    Text(nombreBonito(g.etiqueta), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${porcentaje(g.total, total)} %", style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold)
+                    Text(g.total.soles(), Modifier.width(86.dp), style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.End, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

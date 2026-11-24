@@ -82,7 +82,7 @@ private fun PanelMarca(modifier: Modifier) {
             Caracteristica(Iconos.Recibo, "Boleta y factura electrónica", "Serie, correlativo, IGV y XML UBL 2.1")
             Caracteristica(Iconos.Inventario, "Inventario por lotes", "Venta FEFO y alertas de vencimiento")
             Caracteristica(Iconos.Dashboard, "Dashboard en tiempo real", "Indicadores, reportes y comparativos")
-            Caracteristica(Iconos.Escudo, "Seguridad de nivel profesional", "JWT, roles, auditoría y protección anti-ataques")
+            Caracteristica(Iconos.Escudo, "Acceso seguro por roles", "Cada trabajador ve solo lo que le corresponde")
         }
     }
 }
