@@ -2,6 +2,7 @@ package pe.edu.upeu.megafarma.app.presentation.bitacora
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -118,10 +119,8 @@ fun BitacoraScreen(viewModel: BitacoraViewModel = koinViewModel()) {
     LaunchedEffect(Unit) { viewModel.cargar() }
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        EncabezadoSeccion(
-            "Bitácora de seguridad",
-            "${estado.totalElementos} eventos registrados · inmutable desde la API"
-        ) {
+        // Sin titulo propio: la barra superior ya dice "Seguridad · Bitacora de auditoria".
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = estado.usuario,
                 onValueChange = viewModel::cambiarUsuario,
@@ -131,8 +130,17 @@ fun BitacoraScreen(viewModel: BitacoraViewModel = koinViewModel()) {
                     TextButton(onClick = { viewModel.cambiarUsuario("") }) { Text("Limpiar") }
                 }) else null,
                 singleLine = true,
-                modifier = Modifier.widthIn(min = 200.dp, max = 320.dp)
+                modifier = Modifier.weight(1f, fill = false).widthIn(min = 200.dp, max = 320.dp)
             )
+            Spacer(Modifier.weight(1f))
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Iconos.Escudo, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("${estado.totalElementos} eventos", style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                }
+            }
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FILTROS.forEach { (etiqueta, accion) ->
