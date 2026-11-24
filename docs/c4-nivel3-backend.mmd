@@ -1,0 +1,13 @@
+C4Component
+title Nivel 3 - Componentes del servicio REST (megafarma-backend)
+Container_Boundary(api, "Servicio REST (Spring Boot 4)") {
+  Component(filtro, "Filtro de Seguridad JWT", "Spring Security", "Valida token JWT, emisor, revocacion y rate-limit")
+  Component(ctrl, "Controladores REST", "Spring Web (@RestController)", "Exponen /api/v1/* y validan DTOs")
+  Component(serv, "Servicios de Negocio", "Spring @Service", "Reglas de venta, FEFO, reportes y auditoria")
+  Component(repo, "Repositorios JPA", "Spring Data JPA", "Consultas parametrizadas hacia PostgreSQL")
+  Component(err, "Manejador Global de Errores", "@RestControllerAdvice", "Traduce excepciones a ErrorResponseDTO sin stacktrace")
+}
+Rel(filtro, ctrl, "Autoriza peticion")
+Rel(ctrl, serv, "Invoca")
+Rel(serv, repo, "Usa")
+Rel(ctrl, err, "Delega excepciones")

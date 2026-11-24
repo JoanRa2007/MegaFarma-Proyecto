@@ -1,0 +1,23 @@
+C4Container
+title Nivel 2 - Contenedores del sistema Megafarma
+Person(usuario, "Personal de Botica", "Administrador, Vendedor o Almacenero")
+Container_Boundary(clientes, "Dispositivos Cliente (Kotlin Multiplatform)") {
+  Container(android, "Aplicacion Android", "KMP + Compose", "Interfaz movil nativa Android y consumo de API")
+  Container(ios, "Aplicacion iOS", "KMP + Compose/SwiftUI", "Interfaz movil nativa iOS y consumo de API")
+  Container(web, "Aplicacion Web", "Kotlin/Wasm + Compose", "Interfaz web en navegador")
+  ContainerDb(local, "Almacen Local de Sesion", "SharedPreferences / NSUserDefaults / localStorage", "Persiste token JWT, rol y URL del servidor")
+}
+Container_Boundary(servidor, "Servidor Megafarma") {
+  Container(api, "Servicio REST (API)", "Spring Boot 4 / Java 21", "Logica POS, inventario FEFO, JWT y auditoria OWASP")
+  ContainerDb(bd, "Base de Datos", "PostgreSQL + Flyway", "Catalogo, lotes, ventas, pagos, usuarios y bitacora")
+}
+Rel(usuario, android, "Usa en celular/tablet")
+Rel(usuario, ios, "Usa en iPhone/iPad")
+Rel(usuario, web, "Usa en navegador")
+Rel(android, local, "Lee y guarda sesion", "API plataforma")
+Rel(ios, local, "Lee y guarda sesion", "API plataforma")
+Rel(web, local, "Lee y guarda sesion", "Web Storage")
+Rel(android, api, "Consume", "HTTP/JSON + JWT")
+Rel(ios, api, "Consume", "HTTP/JSON + JWT")
+Rel(web, api, "Consume", "HTTP/JSON + JWT")
+Rel(api, bd, "Lee y escribe", "JDBC / JPA")

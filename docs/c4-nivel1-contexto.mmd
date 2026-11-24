@@ -1,0 +1,11 @@
+C4Context
+title Nivel 1 - Contexto del sistema Megafarma
+Person(admin, "Administrador", "Gestiona catalogo, usuarios, reportes y auditoria de seguridad")
+Person(vend, "Vendedor / Cajero", "Registra ventas en caja con pagos mixtos y emite comprobantes")
+Person(alm, "Almacenero", "Controla inventario por lotes, entradas y alertas de vencimiento FEFO")
+System(sys, "Sistema POS Megafarma", "Punto de venta de botica con control de inventario por lotes y reportes")
+System_Ext(sunat, "Emisor Electronico (Modo Demo)", "Generacion simulada de boletas, facturas y XML")
+Rel(admin, sys, "Administra y consulta reportes", "HTTPS")
+Rel(vend, sys, "Registra ventas y cobra", "HTTPS")
+Rel(alm, sys, "Gestiona lotes y stock", "HTTPS")
+Rel(sys, sunat, "Genera comprobantes electronicos", "Interno / XML")
