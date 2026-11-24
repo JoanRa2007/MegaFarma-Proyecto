@@ -49,9 +49,17 @@ public class UsuarioDetailsService implements UserDetailsService {
                 // findBy... devuelve un Optional: si viene vacio se lanza la excepcion indicada
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
 
+        // Con una clave temporal (debe_cambiar_password) la cuenta no recibe ningun permiso:
+        // solo puede usar las rutas que piden estar autenticado (auth/me, auth/password, auth/logout).
+        // Cualquier otra ruta responde 403 hasta que cambie la clave. Asi la regla la aplica el
+        // servicio y no solo la app.
+        var permisos = usuario.isDebeCambiarPassword()
+                ? java.util.List.<org.springframework.security.core.GrantedAuthority>of()
+                : PermisosPorRol.authorities(usuario.getRol().getNombre());
+
         return User.withUsername(usuario.getUsername())
                 .password(usuario.getPasswordHash())
-                .authorities(PermisosPorRol.authorities(usuario.getRol().getNombre()))
+                .authorities(permisos)
                 .disabled(!usuario.isActivo())
                 .accountLocked(usuario.getIntentosFallidos() >= maxIntentosFallidos)
                 .build();
