@@ -1,6 +1,7 @@
 package pe.edu.upeu.megafarma.app.presentation.navegacion
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,6 +27,7 @@ import pe.edu.upeu.megafarma.app.presentation.inicio.InicioScreen
 import pe.edu.upeu.megafarma.app.presentation.productos.ProductoDetalleScreen
 import pe.edu.upeu.megafarma.app.presentation.productos.ProductosScreen
 import pe.edu.upeu.megafarma.app.presentation.reportes.ReportesScreen
+import pe.edu.upeu.megafarma.app.presentation.tema.ColoresMarca
 import pe.edu.upeu.megafarma.app.presentation.ventas.NuevaVentaScreen
 import pe.edu.upeu.megafarma.app.presentation.ventas.VentasScreen
 
@@ -32,7 +35,8 @@ import pe.edu.upeu.megafarma.app.presentation.ventas.VentasScreen
 enum class Grupo(val titulo: String) {
     OPERACION("Operación"),
     INVENTARIO("Inventario"),
-    GESTION("Gestión")
+    GESTION("Gestión"),
+    CUENTA("Mi cuenta")
 }
 
 /* Pantallas de la app. Cada una exige un permiso; si el rol no lo tiene, no aparece. */
@@ -51,7 +55,8 @@ enum class Destino(
     DASHBOARD("Dashboard", "Indicadores de ventas en tiempo real", Permiso.REPORTES_VER, Grupo.GESTION, { Iconos.Dashboard }),
     REPORTES("Reportes", "Ventas por día, mes y año", Permiso.REPORTES_VER, Grupo.GESTION, { Iconos.Reportes }),
     USUARIOS("Usuarios", "Cuentas, roles y accesos", Permiso.USUARIOS_ADMINISTRAR, Grupo.GESTION, { Iconos.Usuarios }),
-    BITACORA("Seguridad", "Bitácora de auditoría", Permiso.USUARIOS_ADMINISTRAR, Grupo.GESTION, { Iconos.Escudo })
+    BITACORA("Seguridad", "Bitácora de auditoría", Permiso.USUARIOS_ADMINISTRAR, Grupo.GESTION, { Iconos.Escudo }),
+    PERFIL("Mi perfil", "Mis datos y cambio de contraseña", null, Grupo.CUENTA, { Iconos.Persona })
 }
 
 /*
@@ -88,7 +93,7 @@ fun PantallaPrincipal(
         if (ancho) {
             PermanentNavigationDrawer(
                 drawerContent = {
-                    PermanentDrawerSheet(Modifier.width(272.dp), drawerContainerColor = MaterialTheme.colorScheme.surface) { menu {} }
+                    PermanentDrawerSheet(Modifier.width(272.dp), drawerContainerColor = ColoresMarca.menuFondo) { menu {} }
                 }
             ) { contenido(null) }
         } else {
@@ -96,7 +101,7 @@ fun PantallaPrincipal(
             val scope = rememberCoroutineScope()
             ModalNavigationDrawer(
                 drawerState = estadoMenu,
-                drawerContent = { ModalDrawerSheet(Modifier.width(290.dp)) { menu { scope.launch { estadoMenu.close() } } } }
+                drawerContent = { ModalDrawerSheet(Modifier.width(290.dp), drawerContainerColor = ColoresMarca.menuFondo) { menu { scope.launch { estadoMenu.close() } } } }
             ) { contenido { scope.launch { estadoMenu.open() } } }
         }
     }
@@ -116,18 +121,18 @@ private fun MenuLateral(
         // Marca
         Row(Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary),
+                Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(ColoresMarca.menuSeleccion),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Iconos.Farmacia, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                Icon(Iconos.Farmacia, null, tint = ColoresMarca.menuSeleccionTexto, modifier = Modifier.size(24.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column {
-                Text("Megafarma", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Punto de venta", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Megafarma", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Punto de venta", style = MaterialTheme.typography.labelMedium, color = ColoresMarca.menuTextoSuave)
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(color = ColoresMarca.menuDivisor)
 
         // Navegacion por secciones
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
@@ -139,7 +144,7 @@ private fun MenuLateral(
                         Modifier.padding(start = 28.dp, top = 14.dp, bottom = 6.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = ColoresMarca.menuTextoSuave
                     )
                     delGrupo.forEach { d ->
                         NavigationDrawerItem(
@@ -148,6 +153,14 @@ private fun MenuLateral(
                             selected = d == actual,
                             onClick = { onElegir(d) },
                             shape = RoundedCornerShape(10.dp),
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = ColoresMarca.menuSeleccion,
+                                selectedIconColor = ColoresMarca.menuSeleccionTexto,
+                                selectedTextColor = ColoresMarca.menuSeleccionTexto,
+                                unselectedContainerColor = Color.Transparent,
+                                unselectedIconColor = ColoresMarca.menuTexto,
+                                unselectedTextColor = ColoresMarca.menuTexto
+                            ),
                             modifier = Modifier.padding(horizontal = 12.dp).height(44.dp)
                         )
                     }
@@ -156,22 +169,25 @@ private fun MenuLateral(
         }
 
         // Usuario y acciones
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        HorizontalDivider(color = ColoresMarca.menuDivisor)
+        Row(
+            Modifier.clickable { onElegir(Destino.PERFIL) }.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Avatar(sesion.nombreCompleto)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(sesion.nombreCompleto, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("${sesion.username} · ${sesion.rol}", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    color = ColoresMarca.menuTextoSuave, maxLines = 1)
             }
             IconButton(onClick = onCambiarTema) {
                 Icon(if (oscuro) Iconos.Sol else Iconos.Luna, contentDescription = if (oscuro) "Modo claro" else "Modo oscuro",
-                    modifier = Modifier.size(20.dp))
+                    tint = ColoresMarca.menuTexto, modifier = Modifier.size(20.dp))
             }
             IconButton(onClick = onCerrarSesion) {
-                Icon(Iconos.Salir, contentDescription = "Cerrar sesión", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                Icon(Iconos.Salir, contentDescription = "Cerrar sesión", tint = Color(0xFFFF8A94), modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -244,9 +260,10 @@ private fun Contenido(
                 destino == Destino.VENTAS -> VentasScreen(sesion)
                 destino == Destino.ALERTAS -> AlertasScreen()
                 destino == Destino.REPORTES -> ReportesScreen()
-                destino == Destino.DASHBOARD -> pe.edu.upeu.megafarma.app.presentation.dashboard.DashboardScreen()
+                destino == Destino.DASHBOARD -> pe.edu.upeu.megafarma.app.presentation.dashboard.DashboardScreen(onIrA)
                 destino == Destino.USUARIOS -> pe.edu.upeu.megafarma.app.presentation.usuarios.UsuariosScreen()
                 destino == Destino.BITACORA -> pe.edu.upeu.megafarma.app.presentation.bitacora.BitacoraScreen()
+                destino == Destino.PERFIL -> pe.edu.upeu.megafarma.app.presentation.perfil.PerfilScreen(sesion)
             }
         }
     }

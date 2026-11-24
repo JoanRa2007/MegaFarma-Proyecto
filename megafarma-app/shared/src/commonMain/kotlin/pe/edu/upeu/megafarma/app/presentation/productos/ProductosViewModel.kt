@@ -15,9 +15,12 @@ import pe.edu.upeu.megafarma.app.domain.model.DatosProducto
 import pe.edu.upeu.megafarma.app.domain.model.Producto
 import pe.edu.upeu.megafarma.app.domain.repository.ProductoRepository
 
+/* Que productos se ven en la tabla segun su estado. */
+enum class FiltroEstado(val etiqueta: String) { ACTIVOS("Activos"), DESACTIVADOS("Desactivados"), TODOS("Todos") }
+
 data class ProductosUiState(
     val texto: String = "",
-    val incluirInactivos: Boolean = false,
+    val filtro: FiltroEstado = FiltroEstado.ACTIVOS,
     val cargando: Boolean = true,
     val productos: List<Producto> = emptyList(),
     val error: String? = null,
@@ -25,10 +28,18 @@ data class ProductosUiState(
     val categorias: List<Categoria> = emptyList(),
     val guardando: Boolean = false,
     val errorFormulario: String? = null,
-    val aviso: String? = null
+    val aviso: String? = null,
+    val avisoEsError: Boolean = false,
+    /* Producto que se edita desde la tabla; null cuando el formulario es para uno nuevo. */
+    val editando: Producto? = null,
+    /* Producto que espera confirmacion para desactivarse. */
+    val porDesactivar: Producto? = null
 )
 
-/* Listado y busqueda de productos (HU-03) y registro de productos nuevos (HU-01). */
+/*
+ * Listado y busqueda de productos (HU-03), registro (HU-01), edicion (HU-02)
+ * y desactivacion o reactivacion (HU-04) desde la misma tabla.
+ */
 class ProductosViewModel(private val repositorio: ProductoRepository) : ViewModel() {
 
     private val _estado = MutableStateFlow(ProductosUiState())
@@ -48,10 +59,8 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
         }
     }
 
-    fun alternarInactivos() {
-        _estado.update { it.copy(incluirInactivos = !it.incluirInactivos) }
-        buscarAhora()
-    }
+    /* Se traen activos y desactivados juntos; el filtro solo cambia lo que se muestra. */
+    fun filtrar(filtro: FiltroEstado) = _estado.update { it.copy(filtro = filtro) }
 
     private fun buscarAhora() {
         busqueda?.cancel()
@@ -61,14 +70,18 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
     private suspend fun ejecutarBusqueda() {
         _estado.update { it.copy(cargando = true, error = null) }
         val actual = _estado.value
-        when (val r = repositorio.buscar(actual.texto, actual.incluirInactivos)) {
+        when (val r = repositorio.buscar(actual.texto, incluirInactivos = true)) {
             is Resultado.Exito -> _estado.update { it.copy(cargando = false, productos = r.datos) }
             is Resultado.Error -> _estado.update { it.copy(cargando = false, error = r.mensaje) }
         }
     }
 
-    fun abrirFormulario() {
-        _estado.update { it.copy(formularioAbierto = true, errorFormulario = null) }
+    fun abrirFormulario() = abrirFormularioPara(null)
+
+    fun abrirEditar(producto: Producto) = abrirFormularioPara(producto)
+
+    private fun abrirFormularioPara(producto: Producto?) {
+        _estado.update { it.copy(formularioAbierto = true, editando = producto, errorFormulario = null) }
         if (_estado.value.categorias.isEmpty()) {
             viewModelScope.launch {
                 when (val r = repositorio.categorias()) {
@@ -79,19 +92,53 @@ class ProductosViewModel(private val repositorio: ProductoRepository) : ViewMode
         }
     }
 
-    fun cerrarFormulario() = _estado.update { it.copy(formularioAbierto = false) }
+    fun cerrarFormulario() = _estado.update { it.copy(formularioAbierto = false, editando = null) }
 
     fun guardar(datos: DatosProducto) {
+        val editando = _estado.value.editando
         _estado.update { it.copy(guardando = true, errorFormulario = null) }
         viewModelScope.launch {
-            when (val r = repositorio.guardar(null, datos)) {
+            when (val r = repositorio.guardar(editando?.id, datos)) {
                 is Resultado.Exito -> {
+                    val texto = if (editando == null) "Producto ${r.datos.codigo} registrado correctamente"
+                    else "Producto ${r.datos.codigo} actualizado"
                     _estado.update {
-                        it.copy(guardando = false, formularioAbierto = false, aviso = "Producto ${r.datos.codigo} registrado correctamente")
+                        it.copy(guardando = false, formularioAbierto = false, editando = null, aviso = texto, avisoEsError = false)
                     }
                     buscarAhora()
                 }
                 is Resultado.Error -> _estado.update { it.copy(guardando = false, errorFormulario = r.mensaje) }
+            }
+        }
+    }
+
+    /* Pide confirmacion antes de desactivar (no se borra: deja de venderse). */
+    fun pedirDesactivar(producto: Producto) = _estado.update { it.copy(porDesactivar = producto) }
+
+    fun cancelarDesactivar() = _estado.update { it.copy(porDesactivar = null) }
+
+    fun confirmarDesactivar() {
+        val producto = _estado.value.porDesactivar ?: return
+        _estado.update { it.copy(porDesactivar = null) }
+        viewModelScope.launch {
+            when (val r = repositorio.desactivar(producto.id)) {
+                is Resultado.Exito -> {
+                    _estado.update { it.copy(aviso = "Producto ${producto.codigo} desactivado: ya no se vende ni recibe mercadería", avisoEsError = false) }
+                    buscarAhora()
+                }
+                is Resultado.Error -> _estado.update { it.copy(aviso = r.mensaje, avisoEsError = true) }
+            }
+        }
+    }
+
+    fun reactivar(producto: Producto) {
+        viewModelScope.launch {
+            when (val r = repositorio.activar(producto.id)) {
+                is Resultado.Exito -> {
+                    _estado.update { it.copy(aviso = "Producto ${producto.codigo} reactivado", avisoEsError = false) }
+                    buscarAhora()
+                }
+                is Resultado.Error -> _estado.update { it.copy(aviso = r.mensaje, avisoEsError = true) }
             }
         }
     }

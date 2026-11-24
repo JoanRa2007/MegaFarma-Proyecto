@@ -47,6 +47,9 @@ import pe.edu.upeu.megafarma.app.data.remote.dto.VentaRequestDto
  * Cada metodo devuelve Resultado: Exito con el JSON ya convertido, o Error con
  * el mensaje que envio el servidor (por ejemplo "Stock insuficiente...").
  */
+/* Eventos por pagina de la bitacora de seguridad. */
+const val TAMANIO_BITACORA = 10
+
 class MegafarmaApi(
     private val client: HttpClient,
     private val sesion: SesionManager
@@ -63,6 +66,16 @@ class MegafarmaApi(
 
     /* Revoca el token en el servidor: aunque alguien lo hubiera copiado, deja de servir. */
     suspend fun logout(): Resultado<Unit> = llamar { post(url("/auth/logout")) }
+
+    /* Datos del usuario que tiene la sesion abierta (Mi perfil). */
+    suspend fun perfil(): Resultado<UsuarioDto> = llamar { get(url("/auth/me")) }
+
+    suspend fun cambiarPassword(request: pe.edu.upeu.megafarma.app.data.remote.dto.CambioPasswordDto): Resultado<Unit> = llamar {
+        put(url("/auth/password")) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
 
     // ---------- Catalogo ----------
     suspend fun productos(texto: String, incluirInactivos: Boolean): Resultado<PaginaDto<ProductoDto>> = llamar {
@@ -187,13 +200,16 @@ class MegafarmaApi(
         patch(url("/usuarios/$id/estado")) { parameter("activo", activo) }
     }
 
-    /* Bitacora de seguridad (solo ADMIN). */
+    /* Genera una contrasena temporal para el trabajador (recuperar contrasena). */
+    suspend fun restablecerPassword(id: Long): Resultado<UsuarioDto> = llamar { post(url("/usuarios/$id/restablecer-password")) }
+
+    /* Bitacora de seguridad (solo ADMIN): 10 eventos por pagina. */
     suspend fun auditoria(usuario: String, accion: String, pagina: Int): Resultado<PaginaDto<pe.edu.upeu.megafarma.app.data.remote.dto.AuditoriaDto>> = llamar {
         get(url("/auditoria")) {
             if (usuario.isNotBlank()) parameter("usuario", usuario)
             if (accion.isNotBlank()) parameter("accion", accion)
             parameter("pagina", pagina)
-            parameter("tamanio", 50)
+            parameter("tamanio", TAMANIO_BITACORA)
         }
     }
 

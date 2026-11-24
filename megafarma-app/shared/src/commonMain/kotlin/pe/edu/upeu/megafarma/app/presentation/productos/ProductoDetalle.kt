@@ -41,6 +41,20 @@ import pe.edu.upeu.megafarma.app.presentation.componentes.TarjetaDato
 import pe.edu.upeu.megafarma.app.presentation.componentes.Titulo
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.tema.ColoresEstado
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import pe.edu.upeu.megafarma.app.presentation.componentes.BotonAccion
+import pe.edu.upeu.megafarma.app.presentation.componentes.Columna
+import pe.edu.upeu.megafarma.app.presentation.componentes.CampoFecha
+import pe.edu.upeu.megafarma.app.presentation.componentes.GrillaTarjetas
+import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoTabla
+import pe.edu.upeu.megafarma.app.presentation.componentes.FilaTabla
+import pe.edu.upeu.megafarma.app.presentation.componentes.Iconos
+import pe.edu.upeu.megafarma.app.presentation.componentes.Pastilla
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tabla
 
 /* Dialogos que puede abrir la pantalla de detalle. */
 sealed interface DialogoDetalle {
@@ -234,14 +248,14 @@ fun ProductoDetalleScreen(
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargarStock() }
             estado.stock != null -> {
                 val stock = estado.stock!!
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                GrillaTarjetas(anchoMinimo = 150.dp) {
                     TarjetaDato(
                         "Disponible para vender", stock.stockDisponible.toString(),
                         if (stock.bajoMinimo) ColoresEstado.alerta else ColoresEstado.ok,
-                        Modifier.widthIn(min = 170.dp), "Sin lotes vencidos"
+                        Modifier.weight(1f), "Sin lotes vencidos"
                     )
-                    TarjetaDato("Registrado", stock.stockRegistrado.toString(), MaterialTheme.colorScheme.onSurface, Modifier.widthIn(min = 170.dp), "Incluye vencidos sin retirar")
-                    TarjetaDato("Stock mínimo", stock.stockMinimo.toString(), MaterialTheme.colorScheme.onSurface, Modifier.widthIn(min = 170.dp), if (stock.bajoMinimo) "Hay que reponer" else "Nivel correcto")
+                    TarjetaDato("Registrado", stock.stockRegistrado.toString(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), "Incluye vencidos sin retirar")
+                    TarjetaDato("Stock mínimo", stock.stockMinimo.toString(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), if (stock.bajoMinimo) "Hay que reponer" else "Nivel correcto")
                 }
 
                 Titulo("Lotes (ordenados por vencimiento)")
@@ -253,14 +267,27 @@ fun ProductoDetalleScreen(
                 if (stock.lotes.isEmpty()) {
                     Vacio("Este producto todavía no tiene entradas")
                 } else {
+                    val vigentes = stock.lotes.filter { !it.dadoDeBaja }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Contador(vigentes.count { it.vencido }, "Vencidos", ColoresEstado.peligro)
+                        Contador(vigentes.count { !it.vencido && it.diasParaVencer <= DIAS_POR_VENCER }, "Por vencer (${DIAS_POR_VENCER}d)", ColoresEstado.alerta)
+                        Contador(vigentes.count { !it.vencido && it.diasParaVencer > DIAS_POR_VENCER }, "Al día", ColoresEstado.ok)
+                    }
                     val primeroFefo = stock.lotes.firstOrNull { !it.vencido && !it.dadoDeBaja && it.cantidadActual > 0 }?.id
-                    stock.lotes.forEach { lote ->
-                        TarjetaLote(
-                            lote = lote,
-                            saleprimero = lote.id == primeroFefo,
-                            puedeDarDeBaja = puedeInventario && lote.vencido && !lote.dadoDeBaja && lote.cantidadActual > 0,
-                            onBaja = { viewModel.abrirBaja(lote) }
+                    Tabla {
+                        EncabezadoTabla(
+                            listOf(Columna("Lote", 1.4f), Columna("Vence", 1.8f), Columna("Stock", 0.8f)) +
+                                if (puedeInventario) listOf(Columna("", 0.7f)) else emptyList()
                         )
+                        stock.lotes.forEach { lote ->
+                            FilaLote(
+                                lote = lote,
+                                saleprimero = lote.id == primeroFefo,
+                                mostrarAcciones = puedeInventario,
+                                puedeDarDeBaja = puedeInventario && lote.vencido && !lote.dadoDeBaja && lote.cantidadActual > 0,
+                                onBaja = { viewModel.abrirBaja(lote) }
+                            )
+                        }
                     }
                 }
             }
@@ -293,31 +320,58 @@ fun ProductoDetalleScreen(
     }
 }
 
+/* Dias para considerar un lote "por vencer" en la tabla (igual que la alerta de nivel BAJO). */
+private const val DIAS_POR_VENCER = 90
+
+/* Recuadro con un contador y su descripcion, sobre la tabla de lotes. */
 @Composable
-private fun TarjetaLote(lote: Lote, saleprimero: Boolean, puedeDarDeBaja: Boolean, onBaja: () -> Unit) {
-    Tarjeta(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Lote ${lote.numeroLote}", fontWeight = FontWeight.SemiBold)
-                val dias = when {
-                    lote.diasParaVencer < 0 -> "venció hace ${-lote.diasParaVencer} días"
-                    lote.diasParaVencer == 0L -> "vence hoy"
-                    else -> "en ${lote.diasParaVencer} días"
-                }
-                Text("Vence: ${lote.fechaVencimiento} ($dias)", style = MaterialTheme.typography.bodySmall)
-                Text("Cantidad: ${lote.cantidadActual} de ${lote.cantidadInicial}", style = MaterialTheme.typography.bodySmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    when {
-                        lote.dadoDeBaja -> Etiqueta("Dado de baja", ColoresEstado.neutro)
-                        lote.vencido -> Etiqueta("Vencido: no se vende", ColoresEstado.peligro)
-                        lote.diasParaVencer <= 60 -> Etiqueta("Por vencer", ColoresEstado.alerta)
-                        else -> Etiqueta("Vigente", ColoresEstado.ok)
-                    }
-                    if (saleprimero) Etiqueta("Sale primero (FEFO)", MaterialTheme.colorScheme.secondary)
-                }
+private fun Contador(cantidad: Int, texto: String, color: Color) {
+    Row(
+        Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(cantidad.toString(), color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.width(6.dp))
+        Text(texto, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun FilaLote(lote: Lote, saleprimero: Boolean, mostrarAcciones: Boolean, puedeDarDeBaja: Boolean, onBaja: () -> Unit) {
+    FilaTabla {
+        Column(Modifier.weight(1.4f).padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                lote.numeroLote,
+                Modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 1.dp),
+                style = MaterialTheme.typography.labelMedium,
+                fontFamily = FontFamily.Monospace
+            )
+            if (saleprimero) Etiqueta("Sale primero (FEFO)", MaterialTheme.colorScheme.primary)
+        }
+        Column(Modifier.weight(1.8f).padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            when {
+                lote.dadoDeBaja -> Etiqueta("Dado de baja", ColoresEstado.neutro)
+                lote.vencido -> Etiqueta(
+                    if (lote.diasParaVencer == 0L) "vence hoy" else "venció hace ${-lote.diasParaVencer} días",
+                    ColoresEstado.peligro, Iconos.Advertencia
+                )
+                lote.diasParaVencer <= DIAS_POR_VENCER -> Etiqueta(
+                    if (lote.diasParaVencer == 0L) "vence hoy" else "vence en ${lote.diasParaVencer} días",
+                    ColoresEstado.alerta, Iconos.Advertencia
+                )
+                else -> Etiqueta("vence en ${lote.diasParaVencer} días", ColoresEstado.ok, Iconos.Calendario)
             }
-            if (puedeDarDeBaja) {
-                OutlinedButton(onClick = onBaja) { Text("Dar de baja") }
+            Text(lote.fechaVencimiento, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Column(Modifier.weight(0.8f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Pastilla(lote.cantidadActual.toString(), if (lote.cantidadActual > 0) ColoresEstado.info else ColoresEstado.neutro)
+            Text("de ${lote.cantidadInicial}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (mostrarAcciones) {
+            Box(Modifier.weight(0.7f)) {
+                if (puedeDarDeBaja) BotonAccion(Iconos.Eliminar, "Dar de baja", ColoresEstado.peligro, onBaja)
             }
         }
     }
@@ -341,7 +395,7 @@ private fun EntradaDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Campo(lote, { lote = it }, "Número de lote *")
-                Campo(fecha, { fecha = it }, "Fecha de vencimiento *", ayuda = "Formato AAAA-MM-DD, posterior a hoy")
+                CampoFecha(fecha, { fecha = it }, "Fecha de vencimiento *", ayuda = "Debe ser posterior a hoy")
                 Campo(cantidad, { cantidad = it }, "Cantidad *", numerico = true)
                 Campo(precio, { precio = it }, "Precio de compra (opcional)", numerico = true)
                 Text(

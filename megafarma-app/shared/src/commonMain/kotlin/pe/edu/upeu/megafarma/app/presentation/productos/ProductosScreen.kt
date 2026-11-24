@@ -1,9 +1,8 @@
 package pe.edu.upeu.megafarma.app.presentation.productos
 
-import pe.edu.upeu.megafarma.app.presentation.componentes.Tarjeta
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,12 +16,25 @@ import pe.edu.upeu.megafarma.app.domain.model.Permiso
 import pe.edu.upeu.megafarma.app.domain.model.Producto
 import pe.edu.upeu.megafarma.app.domain.model.Sesion
 import pe.edu.upeu.megafarma.app.presentation.componentes.Aviso
+import pe.edu.upeu.megafarma.app.presentation.componentes.BotonAccion
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
+import pe.edu.upeu.megafarma.app.presentation.componentes.Columna
+import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoTabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Etiqueta
+import pe.edu.upeu.megafarma.app.presentation.componentes.FilaTabla
+import pe.edu.upeu.megafarma.app.presentation.componentes.Iconos
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
+import pe.edu.upeu.megafarma.app.presentation.componentes.Pastilla
+import pe.edu.upeu.megafarma.app.presentation.componentes.Tabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.tema.ColoresEstado
 
+/*
+ * Catalogo de productos con su stock, en una tabla con acciones por fila
+ * (editar, desactivar o reactivar). Al tocar una fila se abre el detalle
+ * con el stock por lote.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProductosScreen(
     sesion: Sesion,
@@ -37,35 +49,75 @@ fun ProductosScreen(
         OutlinedTextField(
             value = estado.texto,
             onValueChange = viewModel::cambiarTexto,
-            label = { Text("Buscar por nombre, código o principio activo") },
+            placeholder = { Text("Buscar por nombre, código o principio activo") },
+            leadingIcon = { Icon(Iconos.Buscar, null, Modifier.size(18.dp)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
+        // Filtros por estado con su contador: asi se entiende que hacen aunque no haya desactivados.
+        val activos = estado.productos.count { it.activo }
+        val desactivados = estado.productos.size - activos
+        val filtro = if (puedeEscribir) estado.filtro else FiltroEstado.ACTIVOS
+        val visibles = estado.productos.filter {
+            when (filtro) {
+                FiltroEstado.ACTIVOS -> it.activo
+                FiltroEstado.DESACTIVADOS -> !it.activo
+                FiltroEstado.TODOS -> true
+            }
+        }
         if (puedeEscribir) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(checked = estado.incluirInactivos, onCheckedChange = { viewModel.alternarInactivos() })
-                Text("Ver desactivados", Modifier.padding(start = 8.dp))
-                Spacer(Modifier.weight(1f))
-                Button(onClick = viewModel::abrirFormulario) { Text("Nuevo producto") }
+                FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FiltroEstado.entries.forEach { f ->
+                        val n = when (f) {
+                            FiltroEstado.ACTIVOS -> activos
+                            FiltroEstado.DESACTIVADOS -> desactivados
+                            FiltroEstado.TODOS -> estado.productos.size
+                        }
+                        FilterChip(selected = filtro == f, onClick = { viewModel.filtrar(f) }, label = { Text("${f.etiqueta} ($n)") })
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = viewModel::abrirFormulario, contentPadding = PaddingValues(horizontal = 14.dp)) {
+                    Icon(Iconos.Agregar, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Nuevo")
+                }
             }
         }
 
-        estado.aviso?.let { Aviso(it, esError = false, onCerrar = viewModel::cerrarAviso) }
+        estado.aviso?.let { Aviso(it, esError = estado.avisoEsError, onCerrar = viewModel::cerrarAviso) }
 
         when {
             estado.cargando && estado.productos.isEmpty() -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
-            estado.productos.isEmpty() -> Vacio("No se encontraron productos")
+            visibles.isEmpty() -> Vacio(
+                if (filtro == FiltroEstado.DESACTIVADOS && estado.texto.isBlank()) "No hay productos desactivados"
+                else "No se encontraron productos"
+            )
             else -> {
                 Text(
-                    "${estado.productos.size} producto(s) · toque uno para ver su stock por lote",
+                    "${visibles.size} producto(s) · toque una fila para ver su stock por lote",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(estado.productos, key = { it.id }) { producto ->
-                        TarjetaProducto(producto) { onAbrir(producto) }
+                Tabla(Modifier.weight(1f)) {
+                    EncabezadoTabla(
+                        listOf(Columna("Producto", 3f), Columna("Precio", 1f), Columna("Stock", 0.8f)) +
+                            if (puedeEscribir) listOf(Columna("", 0.9f)) else emptyList()
+                    )
+                    LazyColumn {
+                        items(visibles, key = { it.id }) { producto ->
+                            FilaProducto(
+                                producto = producto,
+                                puedeEscribir = puedeEscribir,
+                                onAbrir = { onAbrir(producto) },
+                                onEditar = { viewModel.abrirEditar(producto) },
+                                onDesactivar = { viewModel.pedirDesactivar(producto) },
+                                onReactivar = { viewModel.reactivar(producto) }
+                            )
+                        }
                     }
                 }
             }
@@ -74,7 +126,7 @@ fun ProductosScreen(
 
     if (estado.formularioAbierto) {
         ProductoFormDialog(
-            inicial = null,
+            inicial = estado.editando,
             categorias = estado.categorias,
             guardando = estado.guardando,
             error = estado.errorFormulario,
@@ -82,33 +134,77 @@ fun ProductosScreen(
             onCerrar = viewModel::cerrarFormulario
         )
     }
+
+    estado.porDesactivar?.let { producto ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelarDesactivar,
+            title = { Text("¿Desactivar ${producto.nombre}?") },
+            text = { Text("No se borra: deja de venderse y de recibir mercadería. Puede reactivarse cuando quiera.") },
+            confirmButton = {
+                Button(
+                    onClick = viewModel::confirmarDesactivar,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Desactivar") }
+            },
+            dismissButton = { TextButton(onClick = viewModel::cancelarDesactivar) { Text("Cancelar") } }
+        )
+    }
 }
 
 @Composable
-private fun TarjetaProducto(producto: Producto, onClick: () -> Unit) {
+private fun FilaProducto(
+    producto: Producto,
+    puedeEscribir: Boolean,
+    onAbrir: () -> Unit,
+    onEditar: () -> Unit,
+    onDesactivar: () -> Unit,
+    onReactivar: () -> Unit
+) {
     val bajo = producto.stockDisponible <= producto.stockMinimo
-    Tarjeta(Modifier.fillMaxWidth().clickable { onClick() }) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(producto.nombre, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    "${producto.codigo} · ${producto.categoriaNombre}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+    val colorStock = when {
+        producto.stockDisponible <= 0 -> ColoresEstado.peligro
+        bajo -> ColoresEstado.alerta
+        else -> ColoresEstado.info
+    }
+    FilaTabla(onClick = onAbrir) {
+        Column(Modifier.weight(3f).padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                producto.nombre,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                listOfNotNull(producto.codigo, producto.categoriaNombre, producto.laboratorio).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (producto.requiereReceta || !producto.activo || (bajo && producto.activo)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (producto.requiereReceta) Etiqueta("Con receta", ColoresEstado.neutro)
                     if (!producto.activo) Etiqueta("Desactivado", ColoresEstado.peligro)
-                    if (bajo && producto.activo) Etiqueta("Stock bajo", ColoresEstado.alerta)
+                    if (producto.requiereReceta) Etiqueta("Con receta", ColoresEstado.neutro)
+                    if (bajo && producto.activo) Etiqueta("Stock bajo", ColoresEstado.alerta, Iconos.Advertencia)
                 }
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(producto.precioVenta.soles(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(
-                    "Stock: ${producto.stockDisponible}",
-                    color = if (bajo) ColoresEstado.alerta else MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+        }
+        Text(
+            producto.precioVenta.soles(),
+            Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Box(Modifier.weight(0.8f)) { Pastilla(producto.stockDisponible.toString(), colorStock) }
+        if (puedeEscribir) {
+            Row(Modifier.weight(0.9f), verticalAlignment = Alignment.CenterVertically) {
+                BotonAccion(Iconos.Editar, "Editar", ColoresEstado.alerta, onEditar)
+                if (producto.activo) {
+                    BotonAccion(Iconos.Eliminar, "Desactivar", ColoresEstado.peligro, onDesactivar)
+                } else {
+                    BotonAccion(Iconos.Restaurar, "Reactivar", ColoresEstado.ok, onReactivar)
+                }
             }
         }
     }

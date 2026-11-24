@@ -15,7 +15,7 @@ import pe.edu.upeu.megafarma.app.domain.model.Venta
 
 /* Conversion DTO (JSON) -> modelo de dominio. */
 
-fun LoginResponseDto.aDominio() = Sesion(token, username, nombreCompleto, rol, permisos)
+fun LoginResponseDto.aDominio() = Sesion(token, username, nombreCompleto, rol, permisos, debeCambiarPassword)
 
 fun CategoriaDto.aDominio() = Categoria(id, nombre)
 
@@ -74,12 +74,16 @@ fun ResumenVentasDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Resumen
     periodo, titulo, desde, hasta, agrupacion, totalVendido, cantidadVentas, ticketPromedio, unidadesVendidas,
     ventasAnuladas, totalAnulado, totalPeriodoAnterior, variacionPorcentaje,
     serie.map { it.aDominio() }, topProductos.map { it.aDominio() }, porCategoria.map { it.aDominio() },
-    porMedioPago.map { it.aDominio() }
+    porMedioPago.map { it.aDominio() }, boletasEmitidas, facturasEmitidas,
+    porVendedor.map { it.aDominio() }, serieAnterior.map { it.aDominio() }
 )
 
 fun ClienteDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Cliente(id, tipoDocumento, numeroDocumento, nombre, telefono)
 
-fun UsuarioDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Usuario(id, username, nombreCompleto, rol, activo, bloqueado)
+fun UsuarioDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Usuario(
+    id, username, nombreCompleto, rol, activo, bloqueado,
+    nombres, apellidos, dni, telefono, correo, debeCambiarPassword, passwordTemporal
+)
 
 fun RolDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Rol(nombre, descripcion, permisos)
 

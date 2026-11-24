@@ -20,13 +20,16 @@ import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import pe.edu.upeu.megafarma.app.core.Resultado
 import pe.edu.upeu.megafarma.app.core.esFechaValida
+import pe.edu.upeu.megafarma.app.core.fechaCorta
 import pe.edu.upeu.megafarma.app.core.soles
 import pe.edu.upeu.megafarma.app.domain.model.Periodo
 import pe.edu.upeu.megafarma.app.domain.model.ReporteInventario
 import pe.edu.upeu.megafarma.app.domain.model.ResumenVentas
 import pe.edu.upeu.megafarma.app.domain.repository.ReporteRepository
-import pe.edu.upeu.megafarma.app.presentation.componentes.Campo
+import pe.edu.upeu.megafarma.app.presentation.componentes.CampoFecha
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
+import pe.edu.upeu.megafarma.app.presentation.componentes.CabeceraResumen
+import pe.edu.upeu.megafarma.app.presentation.componentes.PastillaPeriodo
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Titulo
 
@@ -82,35 +85,39 @@ fun ReportesScreen(viewModel: ReportesViewModel = koinViewModel()) {
     LaunchedEffect(Unit) { viewModel.cargar() }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(Periodo.DIA, Periodo.MES, Periodo.ANIO).forEach { t ->
-                FilterChip(selected = estado.tipo == t, onClick = { viewModel.elegirTipo(t) }, label = { Text("Reporte por ${t.etiqueta.lowercase()}") })
+        // Cabecera con el periodo del reporte (sin repetir el titulo de la barra superior).
+        val r = estado.resumen
+        CabeceraResumen(
+            etiqueta = "Análisis de ventas",
+            titulo = r?.titulo ?: "Reporte por ${estado.tipo.etiqueta.lowercase()}",
+            detalle = r?.let {
+                if (it.desde == it.hasta) "${it.totalVendido.soles()} vendidos en ${it.cantidadVentas} venta(s)"
+                else "Del ${it.desde.fechaCorta()} al ${it.hasta.fechaCorta()} · ${it.totalVendido.soles()} en ${it.cantidadVentas} venta(s)"
+            },
+            cargando = estado.cargando,
+            opciones = {
+                listOf(Periodo.DIA, Periodo.MES, Periodo.ANIO).forEach { t ->
+                    PastillaPeriodo("Por ${t.etiqueta.lowercase()}", estado.tipo == t) { viewModel.elegirTipo(t) }
+                }
             }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Campo(
-                estado.fecha, viewModel::cambiarFecha, "Fecha (AAAA-MM-DD)", Modifier.widthIn(max = 260.dp),
-                ayuda = "Cualquier día del ${estado.tipo.etiqueta.lowercase()}. Vacío = hoy"
-            )
-            Button(onClick = viewModel::cargar) { Text("Generar") }
-        }
+        )
+        CampoFecha(
+            estado.fecha,
+            { viewModel.cambiarFecha(it); viewModel.cargar() },
+            when (estado.tipo) {
+                Periodo.MES -> "Mes del reporte"
+                Periodo.ANIO -> "Año del reporte"
+                else -> "Día del reporte"
+            },
+            Modifier.widthIn(max = 320.dp),
+            ayuda = if (estado.tipo == Periodo.DIA) null else "Elija cualquier día de ese ${estado.tipo.etiqueta.lowercase()}",
+            textoVacio = "Hoy"
+        )
 
         when {
             estado.cargando && estado.resumen == null -> Cargando()
             estado.error != null -> MensajeError(estado.error!!) { viewModel.cargar() }
-            else -> {
-                estado.resumen?.let { ResumenVentasVista(it) }
-                estado.inventario?.let { inv ->
-                    Tarjeta(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Titulo("Inventario valorizado (hoy)")
-                            Text("Valor a precio de venta: ${inv.valorTotal.soles()}", fontWeight = FontWeight.Bold)
-                            Text("Unidades disponibles: ${inv.unidadesTotales}")
-                            Text("Productos con stock: ${inv.productosConStock}")
-                        }
-                    }
-                }
-            }
+            else -> estado.resumen?.let { ResumenVentasVista(it, estado.inventario) }
         }
     }
 }

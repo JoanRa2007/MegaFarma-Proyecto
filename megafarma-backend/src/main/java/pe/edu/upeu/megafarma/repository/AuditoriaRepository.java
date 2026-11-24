@@ -17,7 +17,7 @@ public interface AuditoriaRepository extends JpaRepository<Auditoria, Long> {
 
     @Query("""
             SELECT a FROM Auditoria a
-            WHERE (:usuario = '' OR a.usuario = :usuario)
+            WHERE (:usuario = '' OR LOWER(a.usuario) LIKE CONCAT('%', LOWER(:usuario), '%'))
               AND (:accion = '' OR a.accion = :accion)
             """)
     Page<Auditoria> buscar(@Param("usuario") String usuario, @Param("accion") String accion, Pageable pageable);

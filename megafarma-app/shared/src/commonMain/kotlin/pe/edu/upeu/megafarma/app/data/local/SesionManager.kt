@@ -50,12 +50,13 @@ class SesionManager(
         val username: String,
         val nombreCompleto: String,
         val rol: String,
-        val permisos: List<String>
+        val permisos: List<String>,
+        val debeCambiarPassword: Boolean = false
     ) {
-        fun aSesion() = Sesion(token, username, nombreCompleto, rol, permisos)
+        fun aSesion() = Sesion(token, username, nombreCompleto, rol, permisos, debeCambiarPassword)
 
         companion object {
-            fun de(s: Sesion) = SesionGuardada(s.token, s.username, s.nombreCompleto, s.rol, s.permisos)
+            fun de(s: Sesion) = SesionGuardada(s.token, s.username, s.nombreCompleto, s.rol, s.permisos, s.debeCambiarPassword)
         }
     }
 

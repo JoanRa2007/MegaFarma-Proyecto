@@ -19,12 +19,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import pe.edu.upeu.megafarma.dto.auth.LoginRequestDTO;
 import pe.edu.upeu.megafarma.dto.auth.LoginResponseDTO;
 import pe.edu.upeu.megafarma.dto.auth.UsuarioResponseDTO;
 import pe.edu.upeu.megafarma.entity.Usuario;
 import pe.edu.upeu.megafarma.exception.DemasiadosIntentosException;
+import pe.edu.upeu.megafarma.exception.ReglaNegocioException;
 import pe.edu.upeu.megafarma.mapper.UsuarioMapper;
 import pe.edu.upeu.megafarma.repository.UsuarioRepository;
 import pe.edu.upeu.megafarma.security.JwtService;
@@ -46,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
     private final TokensRevocados tokensRevocados;
     private final AuditoriaService auditoria;
     private final int maxIntentosFallidos;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthServiceImpl(AuthenticationManager authenticationManager,
                            UsuarioRepository usuarioRepository,
@@ -54,7 +57,9 @@ public class AuthServiceImpl implements AuthService {
                            LimitadorIntentosLogin limitador,
                            TokensRevocados tokensRevocados,
                            AuditoriaService auditoria,
-                           @Value("${app.seguridad.max-intentos-fallidos:5}") int maxIntentosFallidos) {
+                           @Value("${app.seguridad.max-intentos-fallidos:5}") int maxIntentosFallidos,
+                           PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.usuarioRepository = usuarioRepository;
         this.jwtService = jwtService;
@@ -103,7 +108,8 @@ public class AuthServiceImpl implements AuthService {
                     usuario.getUsername(),
                     usuario.getNombreCompleto(),
                     rol,
-                    PermisosPorRol.permisos(rol));
+                    PermisosPorRol.permisos(rol),
+                    usuario.isDebeCambiarPassword());
 
         } catch (BadCredentialsException ex) {
             limitador.registrarFallo(ip);
@@ -136,5 +142,26 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public UsuarioResponseDTO perfil() {
         return UsuarioMapper.toResponse(usuarioActual.obtener(), maxIntentosFallidos);
+    }
+
+    /*
+     * El usuario cambia su propia contrasena (Mi perfil o primer ingreso con clave
+     * temporal). Exige la actual para que nadie la cambie con una sesion olvidada.
+     */
+    // Sin @Transactional (como login): la auditoria del intento rechazado debe quedar guardada.
+    @Override
+    public void cambiarPassword(String actual, String nueva) {
+        Usuario usuario = usuarioRepository.findById(usuarioActual.obtener().getId()).orElseThrow();
+        if (!passwordEncoder.matches(actual, usuario.getPasswordHash())) {
+            auditoria.registrar("PASSWORD_RECHAZADA", "Contraseña actual incorrecta", false);
+            throw new ReglaNegocioException("La contraseña actual no es correcta");
+        }
+        if (actual.equals(nueva)) {
+            throw new ReglaNegocioException("La nueva contraseña debe ser distinta de la actual");
+        }
+        usuario.setPasswordHash(passwordEncoder.encode(nueva));
+        usuario.setDebeCambiarPassword(false);
+        usuarioRepository.save(usuario);
+        auditoria.registrar("PASSWORD_CAMBIADA", "El usuario cambió su contraseña", true);
     }
 }

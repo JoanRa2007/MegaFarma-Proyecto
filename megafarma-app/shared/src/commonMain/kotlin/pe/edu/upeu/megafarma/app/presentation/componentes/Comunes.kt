@@ -8,14 +8,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import pe.edu.upeu.megafarma.app.core.fechaCorta
+import pe.edu.upeu.megafarma.app.core.fechaDesdeMillis
+import pe.edu.upeu.megafarma.app.core.millisDesdeFecha
 
 /* Piezas de interfaz reutilizadas por todas las pantallas. */
 
@@ -70,18 +78,44 @@ fun Vacio(texto: String) {
     }
 }
 
-/* Etiqueta pequena de color (por ejemplo "Vencido", "Stock bajo"). */
+/* Etiqueta pequena de color con borde (por ejemplo "Vencido", "vence en 9 dias"). */
 @Composable
-fun Etiqueta(texto: String, color: Color) {
+fun Etiqueta(texto: String, color: Color, icono: ImageVector? = null) {
     Row(
         Modifier
-            .background(color.copy(alpha = 0.12f), RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 3.dp),
+            .background(color.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+            .border(1.dp, color.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(6.dp).background(color, RoundedCornerShape(50)))
-        Spacer(Modifier.width(6.dp))
+        if (icono != null) {
+            Icon(icono, null, tint = color, modifier = Modifier.size(12.dp))
+            Spacer(Modifier.width(4.dp))
+        }
+        Text(texto, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+    }
+}
+
+/* Recuadro con un valor corto (stock, cantidades) centrado, como en las tablas de inventario. */
+@Composable
+fun Pastilla(texto: String, color: Color) {
+    Box(
+        Modifier
+            .widthIn(min = 32.dp)
+            .background(color.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
         Text(texto, color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/* Boton de icono pequeno para las acciones de una fila (editar, eliminar...). */
+@Composable
+fun BotonAccion(icono: ImageVector, descripcion: String, color: Color, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(32.dp)) {
+        Icon(icono, contentDescription = descripcion, tint = color, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -152,5 +186,79 @@ fun BarraHorizontal(etiqueta: String, fraccion: Float, valor: String) {
             )
         }
         Text(valor, modifier = Modifier.padding(start = 8.dp).width(96.dp), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/*
+ * Campo de fecha con calendario: se toca y se elige el dia, sin escribir "AAAA-MM-DD".
+ * Guarda la fecha en el formato del backend y la muestra como 23/11/2026.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CampoFecha(
+    valor: String,
+    onCambio: (String) -> Unit,
+    etiqueta: String,
+    modifier: Modifier = Modifier,
+    ayuda: String? = null,
+    textoVacio: String = "Elegir fecha"
+) {
+    var abierto by remember { mutableStateOf(false) }
+    Box(modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = if (valor.isBlank()) "" else valor.fechaCorta(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(etiqueta) },
+            placeholder = { Text(textoVacio) },
+            trailingIcon = { Icon(Iconos.Calendario, contentDescription = "Abrir calendario", modifier = Modifier.size(20.dp)) },
+            supportingText = if (ayuda != null) ({ Text(ayuda) }) else null,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        // Capa transparente encima del campo: cualquier toque abre el calendario.
+        Box(Modifier.matchParentSize().padding(top = 8.dp, bottom = if (ayuda != null) 22.dp else 0.dp).clickable { abierto = true })
+    }
+    if (abierto) {
+        val estado = rememberDatePickerState(initialSelectedDateMillis = millisDesdeFecha(valor))
+        DatePickerDialog(
+            onDismissRequest = { abierto = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    estado.selectedDateMillis?.let { onCambio(fechaDesdeMillis(it)) }
+                    abierto = false
+                }) { Text("Aceptar") }
+            },
+            dismissButton = {
+                Row {
+                    if (valor.isNotBlank()) TextButton(onClick = { onCambio(""); abierto = false }) { Text("Borrar") }
+                    TextButton(onClick = { abierto = false }) { Text("Cancelar") }
+                }
+            }
+        ) {
+            DatePicker(state = estado, showModeToggle = false)
+        }
+    }
+}
+
+/* Controles de pagina compactos: caben en una fila tambien en el celular. */
+@Composable
+fun Paginador(pagina: Int, totalPaginas: Int, onAnterior: () -> Unit, onSiguiente: () -> Unit, detalle: String? = null) {
+    // Siempre visible: con una sola pagina se ve "1 de 1" y los botones quedan deshabilitados.
+    val paginas = totalPaginas.coerceAtLeast(1)
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = onAnterior, enabled = pagina > 0, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("‹ Anterior") }
+            Text(
+                "${pagina + 1} de $paginas",
+                Modifier.padding(horizontal = 16.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1
+            )
+            OutlinedButton(onClick = onSiguiente, enabled = pagina + 1 < paginas, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Siguiente ›") }
+        }
+        if (detalle != null) {
+            Text(detalle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

@@ -19,15 +19,22 @@ public final class UsuarioMapper {
     /* Nunca se devuelve el hash de la contrasena. */
     public static UsuarioResponseDTO toResponse(Usuario usuario, int maxIntentosFallidos) {
         String rol = usuario.getRol().getNombre();
-        return new UsuarioResponseDTO(
-                usuario.getId(),
-                usuario.getUsername(),
-                usuario.getNombreCompleto(),
-                rol,
-                PermisosPorRol.permisos(rol),
-                usuario.isActivo(),
-                usuario.getIntentosFallidos() >= maxIntentosFallidos,
-                usuario.getCreadoEn());
+        UsuarioResponseDTO dto = new UsuarioResponseDTO();
+        dto.setId(usuario.getId());
+        dto.setUsername(usuario.getUsername());
+        dto.setNombreCompleto(usuario.getNombreCompleto());
+        dto.setRol(rol);
+        dto.setPermisos(PermisosPorRol.permisos(rol));
+        dto.setActivo(usuario.isActivo());
+        dto.setBloqueado(usuario.getIntentosFallidos() >= maxIntentosFallidos);
+        dto.setCreadoEn(usuario.getCreadoEn());
+        dto.setNombres(usuario.getNombres());
+        dto.setApellidos(usuario.getApellidos());
+        dto.setDni(usuario.getDni());
+        dto.setTelefono(usuario.getTelefono());
+        dto.setCorreo(usuario.getCorreo());
+        dto.setDebeCambiarPassword(usuario.isDebeCambiarPassword());
+        return dto;
     }
 
     public static RolResponseDTO toResponse(Rol rol) {

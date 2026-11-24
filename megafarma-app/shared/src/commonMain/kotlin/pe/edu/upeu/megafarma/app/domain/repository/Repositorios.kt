@@ -29,6 +29,10 @@ interface AuthRepository {
     val servidor: String
     suspend fun iniciarSesion(usuario: String, clave: String, servidor: String): Resultado<Sesion>
     suspend fun cerrarSesion()
+    /* Datos del usuario con la sesion abierta (Mi perfil). */
+    suspend fun perfil(): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>
+    /* Cambia la propia contrasena; si tenia una temporal, deja de pedirse el cambio. */
+    suspend fun cambiarPassword(actual: String, nueva: String): Resultado<Unit>
 }
 
 interface ProductoRepository {
@@ -75,5 +79,6 @@ interface UsuarioRepository {
     suspend fun roles(): Resultado<List<pe.edu.upeu.megafarma.app.domain.model.Rol>>
     suspend fun guardar(id: Long?, datos: pe.edu.upeu.megafarma.app.domain.model.DatosUsuario): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>
     suspend fun cambiarEstado(id: Long, activo: Boolean): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>
+    suspend fun restablecerPassword(id: Long): Resultado<pe.edu.upeu.megafarma.app.domain.model.Usuario>
     suspend fun bitacora(usuario: String, accion: String, pagina: Int): Resultado<pe.edu.upeu.megafarma.app.domain.model.PaginaAuditoria>
 }

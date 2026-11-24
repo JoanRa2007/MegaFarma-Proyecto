@@ -16,8 +16,12 @@ data class LoginResponseDto(
     val username: String,
     val nombreCompleto: String,
     val rol: String,
-    val permisos: List<String> = emptyList()
+    val permisos: List<String> = emptyList(),
+    val debeCambiarPassword: Boolean = false
 )
+
+@Serializable
+data class CambioPasswordDto(val actual: String, val nueva: String)
 
 @Serializable
 data class ErrorDto(val message: String? = null, val validationErrors: Map<String, String>? = null)
@@ -242,7 +246,11 @@ data class ResumenVentasDto(
     val serie: List<GrupoDto> = emptyList(),
     val topProductos: List<MasVendidoDto> = emptyList(),
     val porCategoria: List<GrupoDto> = emptyList(),
-    val porMedioPago: List<GrupoDto> = emptyList()
+    val porMedioPago: List<GrupoDto> = emptyList(),
+    val boletasEmitidas: Int = 0,
+    val facturasEmitidas: Int = 0,
+    val porVendedor: List<GrupoDto> = emptyList(),
+    val serieAnterior: List<GrupoDto> = emptyList()
 )
 
 @Serializable
@@ -264,11 +272,26 @@ data class UsuarioDto(
     val nombreCompleto: String,
     val rol: String,
     val activo: Boolean = true,
-    val bloqueado: Boolean = false
+    val bloqueado: Boolean = false,
+    val nombres: String? = null,
+    val apellidos: String? = null,
+    val dni: String? = null,
+    val telefono: String? = null,
+    val correo: String? = null,
+    val debeCambiarPassword: Boolean = false,
+    val passwordTemporal: String? = null
 )
 
 @Serializable
-data class UsuarioRequestDto(val username: String, val password: String? = null, val nombreCompleto: String, val rol: String)
+data class UsuarioRequestDto(
+    val username: String,
+    val nombres: String,
+    val apellidos: String,
+    val dni: String? = null,
+    val telefono: String? = null,
+    val correo: String? = null,
+    val rol: String
+)
 
 @Serializable
 data class RolDto(val nombre: String, val descripcion: String? = null, val permisos: List<String> = emptyList())

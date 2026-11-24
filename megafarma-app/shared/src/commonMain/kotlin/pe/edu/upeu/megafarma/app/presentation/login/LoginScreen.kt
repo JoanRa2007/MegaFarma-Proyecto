@@ -1,6 +1,8 @@
 package pe.edu.upeu.megafarma.app.presentation.login
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import pe.edu.upeu.megafarma.app.presentation.tema.ColoresMarca
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -62,7 +65,7 @@ fun LoginScreen(viewModel: LoginViewModel = koinViewModel()) {
 @Composable
 private fun PanelMarca(modifier: Modifier) {
     Box(
-        modifier.background(Brush.linearGradient(listOf(Color(0xFF0E7C66), Color(0xFF075E54), Color(0xFF0B3B4F)))),
+        modifier.background(Brush.linearGradient(ColoresMarca.degradado)),
         contentAlignment = Alignment.Center
     ) {
         Column(Modifier.widthIn(max = 460.dp).padding(48.dp)) {
@@ -79,7 +82,7 @@ private fun PanelMarca(modifier: Modifier) {
             Caracteristica(Iconos.Recibo, "Boleta y factura electrónica", "Serie, correlativo, IGV y XML UBL 2.1")
             Caracteristica(Iconos.Inventario, "Inventario por lotes", "Venta FEFO y alertas de vencimiento")
             Caracteristica(Iconos.Dashboard, "Dashboard en tiempo real", "Indicadores, reportes y comparativos")
-            Caracteristica(Iconos.Escudo, "Seguridad de nivel profesional", "JWT, roles, auditoría y protección anti-ataques")
+            Caracteristica(Iconos.Escudo, "Acceso seguro por roles", "Cada trabajador ve solo lo que le corresponde")
         }
     }
 }
@@ -109,9 +112,22 @@ private fun Logo(fondo: Color, color: Color) {
 @Composable
 private fun Formulario(estado: LoginUiState, viewModel: LoginViewModel, modifier: Modifier) {
     var verClave by remember { mutableStateOf(false) }
+    var verAyuda by remember { mutableStateOf(false) }
+    var toques by remember { mutableStateOf(0) }
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Iniciar sesión", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(
+            "Iniciar sesión",
+            Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                toques++
+                if (toques >= 5) {
+                    toques = 0
+                    viewModel.alternarServidor()
+                }
+            },
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
         Text("Ingrese con su usuario asignado", color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         OutlinedTextField(
@@ -160,9 +176,22 @@ private fun Formulario(estado: LoginUiState, viewModel: LoginViewModel, modifier
             else Text("Ingresar", fontWeight = FontWeight.SemiBold)
         }
 
-        TextButton(onClick = viewModel::alternarServidor, contentPadding = PaddingValues(0.dp)) {
-            Text("Servidor: ${estado.servidor}", style = MaterialTheme.typography.bodySmall)
+        TextButton(onClick = { verAyuda = !verAyuda }, contentPadding = PaddingValues(0.dp)) {
+            Text("¿Olvidó su contraseña?", style = MaterialTheme.typography.bodyMedium)
         }
+        if (verAyuda) {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
+                Text(
+                    "Pida al administrador que restablezca su contraseña desde Usuarios. Le dará una contraseña " +
+                        "temporal y el sistema le pedirá crear una nueva al ingresar.",
+                    Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+
+        // Direccion del backend: solo para pruebas en emulador o celular (se abre tocando 5 veces el titulo).
         if (estado.verServidor) {
             OutlinedTextField(
                 value = estado.servidor,
@@ -173,20 +202,5 @@ private fun Formulario(estado: LoginUiState, viewModel: LoginViewModel, modifier
                 modifier = Modifier.fillMaxWidth()
             )
         }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Iconos.Escudo, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                "Acceso protegido con JWT. Los intentos fallidos se bloquean y quedan registrados.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Text(
-            "Usuarios de prueba: admin / Admin123 · vendedor / Venta123 · almacen / Almacen123",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
