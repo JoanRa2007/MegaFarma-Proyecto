@@ -32,8 +32,8 @@ import pe.edu.upeu.megafarma.app.domain.model.ResumenAlertas
 import pe.edu.upeu.megafarma.app.domain.model.ResumenVentas
 import pe.edu.upeu.megafarma.app.domain.repository.InventarioRepository
 import pe.edu.upeu.megafarma.app.domain.repository.ReporteRepository
+import pe.edu.upeu.megafarma.app.presentation.componentes.CabeceraResumen
 import pe.edu.upeu.megafarma.app.presentation.componentes.Cargando
-import pe.edu.upeu.megafarma.app.presentation.componentes.EncabezadoSeccion
 import pe.edu.upeu.megafarma.app.presentation.componentes.GraficoDona
 import pe.edu.upeu.megafarma.app.presentation.componentes.GraficoLinea
 import pe.edu.upeu.megafarma.app.presentation.componentes.GrillaTarjetas
@@ -42,6 +42,7 @@ import pe.edu.upeu.megafarma.app.presentation.componentes.Insignia
 import pe.edu.upeu.megafarma.app.presentation.componentes.Leyenda
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Panel
+import pe.edu.upeu.megafarma.app.presentation.componentes.PastillaPeriodo
 import pe.edu.upeu.megafarma.app.presentation.componentes.Sparkline
 import pe.edu.upeu.megafarma.app.presentation.componentes.Titulo
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
@@ -102,15 +103,21 @@ fun DashboardScreen(onIrA: (Destino) -> Unit = {}, viewModel: DashboardViewModel
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        EncabezadoSeccion("Dashboard", estado.resumen?.titulo ?: "Resumen del negocio") {
-            if (estado.cargando) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-            IconButton(onClick = { viewModel.cargar() }) {
-                Icon(Iconos.Restaurar, contentDescription = "Actualizar", tint = MaterialTheme.colorScheme.primary)
+        // Cabecera con el periodo y sus cifras (sin repetir el titulo de la barra superior).
+        val r = estado.resumen
+        CabeceraResumen(
+            etiqueta = "Resumen de ventas",
+            titulo = r?.titulo ?: estado.periodo.etiqueta,
+            detalle = r?.let { "${it.totalVendido.soles()} vendidos · ${it.cantidadVentas} venta(s) · ticket ${it.ticketPromedio.soles()}" },
+            cargando = estado.cargando,
+            opciones = {
+                listOf(Periodo.HOY, Periodo.SEMANA, Periodo.MES, Periodo.ANIO).forEach { p ->
+                    PastillaPeriodo(p.etiqueta, estado.periodo == p) { viewModel.cargar(p) }
+                }
             }
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(Periodo.HOY, Periodo.SEMANA, Periodo.MES, Periodo.ANIO).forEach { p ->
-                FilterChip(selected = estado.periodo == p, onClick = { viewModel.cargar(p) }, label = { Text(p.etiqueta) })
+        ) {
+            IconButton(onClick = { viewModel.cargar() }) {
+                Icon(Iconos.Restaurar, contentDescription = "Actualizar", tint = Color.White)
             }
         }
 
@@ -169,7 +176,7 @@ private fun ContenidoDashboard(r: ResumenVentas, onIrA: (Destino) -> Unit) {
 
     // ---------- Indicadores con su tendencia ----------
     GrillaTarjetas(anchoMinimo = 210.dp) {
-        val m = Modifier.weight(1f).fillMaxRowHeight()
+        val m = Modifier.weight(1f)
         KpiTendencia("Total vendido", r.totalVendido.soles(), Iconos.Dinero, ColoresEstado.ok, totales, m,
             variacion(r.variacionPorcentaje))
         KpiTendencia("Ventas", r.cantidadVentas.toString(), Iconos.Caja, ColoresEstado.info, cantidades, m,
@@ -207,7 +214,7 @@ private fun ContenidoDashboard(r: ResumenVentas, onIrA: (Destino) -> Unit) {
 
     // ---------- Top de productos y medios de pago ----------
     GrillaTarjetas(anchoMinimo = 320.dp) {
-        Panel(Modifier.weight(1f).fillMaxRowHeight()) {
+        Panel(Modifier.weight(1f)) {
             Titulo("Más vendidos")
             Spacer(Modifier.height(8.dp))
             if (r.topProductos.isEmpty()) Vacio("Sin ventas en el período")
@@ -231,7 +238,7 @@ private fun ContenidoDashboard(r: ResumenVentas, onIrA: (Destino) -> Unit) {
                 }
             }
         }
-        Panel(Modifier.weight(1f).fillMaxRowHeight()) {
+        Panel(Modifier.weight(1f)) {
             Titulo("Medios de pago")
             Spacer(Modifier.height(12.dp))
             GraficoDona(r.porMedioPago, centro = "${r.cantidadVentas}\nventas")

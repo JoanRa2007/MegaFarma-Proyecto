@@ -47,7 +47,7 @@ fun ResumenVentasVista(r: ResumenVentas, inventario: ReporteInventario?) {
 
         // ---------- Resumen en tabla, con el periodo anterior al lado ----------
         GrillaTarjetas(anchoMinimo = 300.dp) {
-            Panel(Modifier.weight(1f).fillMaxRowHeight()) {
+            Panel(Modifier.weight(1f)) {
                 Titulo("Resumen del período")
                 Spacer(Modifier.height(8.dp))
                 FilaDato("Total vendido", r.totalVendido.soles(), negrita = true)
@@ -58,7 +58,7 @@ fun ResumenVentasVista(r: ResumenVentas, inventario: ReporteInventario?) {
                 FilaDato("Ventas anuladas", "${r.ventasAnuladas} · ${r.totalAnulado.soles()}",
                     color = if (r.ventasAnuladas > 0) ColoresEstado.peligro else null)
             }
-            Panel(Modifier.weight(1f).fillMaxRowHeight()) {
+            Panel(Modifier.weight(1f)) {
                 Titulo("Comparación")
                 Spacer(Modifier.height(8.dp))
                 FilaDato("Este período", r.totalVendido.soles(), negrita = true)
@@ -115,12 +115,12 @@ fun ResumenVentasVista(r: ResumenVentas, inventario: ReporteInventario?) {
 
         // ---------- Categorias (dona) y vendedores (barras) ----------
         GrillaTarjetas(anchoMinimo = 320.dp) {
-            Panel(Modifier.weight(1f).fillMaxRowHeight()) {
+            Panel(Modifier.weight(1f)) {
                 Titulo("Ventas por categoría")
                 Spacer(Modifier.height(12.dp))
                 GraficoDona(r.porCategoria, tamano = 140.dp)
             }
-            Panel(Modifier.weight(1f).fillMaxRowHeight()) {
+            Panel(Modifier.weight(1f)) {
                 Titulo("Ventas por vendedor")
                 Spacer(Modifier.height(8.dp))
                 Barras(r.porVendedor, conCantidad = true)
