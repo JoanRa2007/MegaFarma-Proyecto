@@ -47,12 +47,16 @@ public class AuditoriaServiceImpl implements AuditoriaService {
     public void registrar(String accion, String detalle, boolean exito) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String usuario = auth == null || !auth.isAuthenticated() ? "anonimo" : auth.getName();
-        registrarDe(usuario, accion, detalle, exito);
+        guardar(usuario, accion, detalle, exito);
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registrarDe(String usuario, String accion, String detalle, boolean exito) {
+        guardar(usuario, accion, detalle, exito);
+    }
+
+    private void guardar(String usuario, String accion, String detalle, boolean exito) {
         try {
             Auditoria a = new Auditoria();
             a.setFecha(LocalDateTime.now());

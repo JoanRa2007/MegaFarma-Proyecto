@@ -289,7 +289,8 @@ class PuntoDeVentaTest {
         assertThat(nivelDe(json, "L-BAJ")).isEqualTo("BAJO");
         // Todo lote vencido que siga en el estante es crítico.
         java.util.List<String> nivelesVencidos = JsonPath.read(json, "$[?(@.vencido == true)].nivelAlerta");
-        assertThat(nivelesVencidos).allMatch("CRITICO"::equals);
+        // En este escenario no hay lotes vencidos: todos estan dentro de los 90 dias.
+        assertThat(nivelesVencidos).isEmpty();
 
         mvc.perform(get("/api/v1/alertas/resumen").header("Authorization", admin))
                 .andExpect(status().isOk())
