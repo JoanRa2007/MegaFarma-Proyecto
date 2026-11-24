@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -242,14 +243,29 @@ fun VentasScreen(sesion: Sesion, viewModel: VentasViewModel = koinViewModel()) {
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-        EncabezadoSeccion("Ventas", "${estado.filtroAplicado} · ${estado.totalElementos} venta(s)") {
-            OutlinedButton(onClick = viewModel::limpiar) { Text("Mes actual") }
-        }
-
         // ---------- Filtros por fecha (HU-11): se busca al elegir la fecha ----------
+        // Sin titulo propio: la barra superior ya dice "Ventas".
         Row(Modifier.widthIn(max = 560.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CampoFecha(estado.desde, viewModel::cambiarDesde, "Desde", Modifier.weight(1f))
             CampoFecha(estado.hasta, viewModel::cambiarHasta, "Hasta", Modifier.weight(1f))
+        }
+
+        // Cuantas ventas hay en el periodo elegido.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Iconos.Recibo, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("${estado.totalElementos} ventas", style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                    Text("  ·  ${estado.filtroAplicado}", style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            if (estado.filtroAplicado != "Mes actual") {
+                TextButton(onClick = viewModel::limpiar) { Text("Volver al mes actual") }
+            }
         }
         estado.aviso?.let { Aviso(it, esError = false, onCerrar = viewModel::cerrarAviso) }
 
