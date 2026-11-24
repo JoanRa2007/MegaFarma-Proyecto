@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import pe.edu.upeu.megafarma.app.core.Resultado
+import pe.edu.upeu.megafarma.app.core.TAMANIO_TABLA
 import pe.edu.upeu.megafarma.app.core.esFechaValida
 import pe.edu.upeu.megafarma.app.core.fechaHora
 import pe.edu.upeu.megafarma.app.core.rangoMostrado
@@ -48,9 +49,6 @@ import pe.edu.upeu.megafarma.app.presentation.componentes.Tabla
 import pe.edu.upeu.megafarma.app.presentation.componentes.MensajeError
 import pe.edu.upeu.megafarma.app.presentation.componentes.Vacio
 import pe.edu.upeu.megafarma.app.presentation.tema.ColoresEstado
-
-/* Tamano de pagina de la busqueda de ventas. */
-private const val TAMANIO_PAGINA = 10
 
 data class VentasUiState(
     // Filtros (HU-11). Vacios = mes actual.
@@ -149,7 +147,7 @@ class VentasViewModel(private val repositorio: VentaRepository) : ViewModel() {
         }
         _estado.update { it.copy(cargando = true, error = null) }
         viewModelScope.launch {
-            when (val r = repositorio.listar(desdeFinal, hastaFinal, pagina, TAMANIO_PAGINA)) {
+            when (val r = repositorio.listar(desdeFinal, hastaFinal, pagina, TAMANIO_TABLA)) {
                 is Resultado.Exito -> _estado.update {
                     it.copy(
                         cargando = false,
@@ -291,7 +289,7 @@ fun VentasScreen(sesion: Sesion, viewModel: VentasViewModel = koinViewModel()) {
         // ---------- Paginas (CA-11-05): 10 por pagina, siempre visible ----------
         Paginador(
             estado.pagina, estado.totalPaginas, viewModel::paginaAnterior, viewModel::paginaSiguiente,
-            detalle = rangoMostrado(estado.pagina, TAMANIO_PAGINA, estado.ventas.size, estado.totalElementos)
+            detalle = rangoMostrado(estado.pagina, TAMANIO_TABLA, estado.ventas.size, estado.totalElementos)
         )
     }
 

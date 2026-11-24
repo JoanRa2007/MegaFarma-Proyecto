@@ -11,8 +11,12 @@ package pe.edu.upeu.megafarma.service.impl;
  * Solo cuentan las ventas REGISTRADAS; las anuladas se informan aparte.
  */
 
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.upeu.megafarma.dto.PaginaResponseDTO;
 import pe.edu.upeu.megafarma.dto.reporte.ProductoMasVendidoDTO;
 import pe.edu.upeu.megafarma.dto.reporte.ReporteVentasDTO;
 import pe.edu.upeu.megafarma.dto.reporte.ResumenVentasDTO;
@@ -76,26 +80,36 @@ public class ResumenVentasServiceImpl implements ResumenVentasService {
 
     @Override
     @Transactional(readOnly = true)
-    public ResumenVentasDTO reporte(Periodo tipo, LocalDate fecha) {
+    public ResumenVentasDTO reporte(Periodo tipo, LocalDate fecha, int paginaSerie, int paginaTop, int tamanio) {
         LocalDate f = fecha == null ? LocalDate.now() : fecha;
         return switch (tipo) {
-            case DIA, HOY -> calcular("DIA", "Día " + f.format(DIA), f, f, "HORA", f.minusDays(1), f.minusDays(1));
+            case DIA, HOY -> calcular("DIA", "Día " + f.format(DIA), f, f, "HORA", f.minusDays(1), f.minusDays(1),
+                    paginaSerie, paginaTop, tamanio);
             case MES -> {
                 LocalDate inicio = f.withDayOfMonth(1);
                 LocalDate fin = f.with(TemporalAdjusters.lastDayOfMonth());
                 LocalDate inicioAnterior = inicio.minusMonths(1);
                 yield calcular("MES", MESES_LARGO[f.getMonthValue() - 1] + " " + f.getYear(), inicio, fin, "DIA",
-                        inicioAnterior, inicioAnterior.with(TemporalAdjusters.lastDayOfMonth()));
+                        inicioAnterior, inicioAnterior.with(TemporalAdjusters.lastDayOfMonth()),
+                        paginaSerie, paginaTop, tamanio);
             }
             case ANIO -> calcular("ANIO", "Año " + f.getYear(), f.withDayOfYear(1),
                     f.with(TemporalAdjusters.lastDayOfYear()), "MES",
-                    f.minusYears(1).withDayOfYear(1), f.minusYears(1).with(TemporalAdjusters.lastDayOfYear()));
+                    f.minusYears(1).withDayOfYear(1), f.minusYears(1).with(TemporalAdjusters.lastDayOfYear()),
+                    paginaSerie, paginaTop, tamanio);
             case SEMANA -> throw new SolicitudInvalidaException("Para reportes use DIA, MES o ANIO");
         };
     }
 
+    /* El dashboard no pagina: usa la primera página de cada tabla. */
     private ResumenVentasDTO calcular(String periodo, String titulo, LocalDate desde, LocalDate hasta, String agrupacion,
                                       LocalDate desdeAnterior, LocalDate hastaAnterior) {
+        return calcular(periodo, titulo, desde, hasta, agrupacion, desdeAnterior, hastaAnterior, 0, 0, 10);
+    }
+
+    private ResumenVentasDTO calcular(String periodo, String titulo, LocalDate desde, LocalDate hasta, String agrupacion,
+                                      LocalDate desdeAnterior, LocalDate hastaAnterior,
+                                      int paginaSerie, int paginaTop, int tamanio) {
 
         List<Venta> todas = ventaRepository.todasPorRango(desde.atStartOfDay(), hasta.plusDays(1).atStartOfDay());
         List<Venta> vigentes = todas.stream().filter(v -> v.getEstado() == EstadoVenta.REGISTRADA).toList();
@@ -115,19 +129,28 @@ public class ResumenVentasServiceImpl implements ResumenVentasService {
                 : total.subtract(totalAnterior).multiply(BigDecimal.valueOf(100))
                 .divide(totalAnterior, 1, RoundingMode.HALF_UP).doubleValue();
 
+        List<ReporteVentasDTO.Grupo> serieCompleta = serie(vigentes, desde, hasta, agrupacion);
+        /* La tabla solo muestra tramos con ventas; el grafico conserva todos los tramos. */
+        List<ReporteVentasDTO.Grupo> serieTabla = serieCompleta.stream()
+                .filter(g -> g.getCantidadVentas() > 0)
+                .toList();
+        List<ProductoMasVendidoDTO> topCompleto = topProductos(vigentes);
+
         return new ResumenVentasDTO(
                 periodo, titulo, desde, hasta, agrupacion,
                 total, cantidad, ticket, unidades,
                 anuladas.size(), sumar(anuladas),
                 totalAnterior, variacion,
-                serie(vigentes, desde, hasta, agrupacion),
-                topProductos(vigentes),
+                serieCompleta,
+                topCompleto.stream().limit(5).toList(),
                 porCategoria(vigentes),
                 porMedioPago(vigentes),
                 contarComprobantes(vigentes, TipoComprobante.BOLETA),
                 contarComprobantes(vigentes, TipoComprobante.FACTURA),
                 porVendedor(vigentes),
-                serie(anteriores, desdeAnterior, hastaAnterior, agrupacion));
+                serie(anteriores, desdeAnterior, hastaAnterior, agrupacion),
+                paginaDe(serieTabla, paginaSerie, tamanio),
+                paginaDe(topCompleto, paginaTop, tamanio));
     }
 
     private static int contarComprobantes(List<Venta> ventas, TipoComprobante tipo) {
@@ -186,8 +209,16 @@ public class ResumenVentasServiceImpl implements ResumenVentasService {
         return porProducto.values().stream()
                 .sorted(Comparator.comparingLong(ProductoMasVendidoDTO::getUnidadesVendidas).reversed()
                         .thenComparing(ProductoMasVendidoDTO::getNombre))
-                .limit(5)
                 .toList();
+    }
+
+    /* Página en memoria: las listas del reporte ya están calculadas y ordenadas. */
+    private static <T> PaginaResponseDTO<T> paginaDe(List<T> completa, int pagina, int tamanio) {
+        Pageable pageable = PageRequest.of(Math.max(pagina, 0), Math.min(Math.max(tamanio, 1), 10));
+        int desde = (int) pageable.getOffset();
+        int hasta = Math.min(desde + pageable.getPageSize(), completa.size());
+        List<T> contenido = desde >= completa.size() ? List.of() : completa.subList(desde, hasta);
+        return PaginaResponseDTO.de(new PageImpl<>(contenido, pageable, completa.size()), contenido);
     }
 
     private List<ReporteVentasDTO.Grupo> porCategoria(List<Venta> ventas) {

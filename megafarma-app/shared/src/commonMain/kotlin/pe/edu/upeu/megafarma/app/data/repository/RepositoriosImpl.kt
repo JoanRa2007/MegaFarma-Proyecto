@@ -17,6 +17,7 @@ import pe.edu.upeu.megafarma.app.domain.model.LineaVenta
 import pe.edu.upeu.megafarma.app.domain.model.Lote
 import pe.edu.upeu.megafarma.app.domain.model.MedioPago
 import pe.edu.upeu.megafarma.app.domain.model.NuevaEntrada
+import pe.edu.upeu.megafarma.app.domain.model.Pagina
 import pe.edu.upeu.megafarma.app.domain.model.PaginaVentas
 import pe.edu.upeu.megafarma.app.domain.model.Producto
 import pe.edu.upeu.megafarma.app.domain.model.ProductoVendido
@@ -72,6 +73,16 @@ class ProductoRepositoryImpl(private val api: MegafarmaApi) : ProductoRepository
 
     override suspend fun buscar(texto: String, incluirInactivos: Boolean): Resultado<List<Producto>> =
         api.productos(texto, incluirInactivos).mapear { pagina -> pagina.contenido.map { it.aDominio() } }
+
+    override suspend fun buscarPagina(
+        texto: String,
+        incluirInactivos: Boolean,
+        soloInactivos: Boolean,
+        pagina: Int,
+        tamanio: Int
+    ): Resultado<Pagina<Producto>> = api.productos(
+        texto, incluirInactivos, soloInactivos, pagina, tamanio
+    ).mapear { p -> p.aDominio { it.aDominio() } }
 
     override suspend fun categorias(): Resultado<List<Categoria>> =
         api.categorias().mapear { lista -> lista.map { it.aDominio() } }
@@ -158,8 +169,13 @@ class ReporteRepositoryImpl(private val api: MegafarmaApi) : ReporteRepository {
     override suspend fun dashboard(periodo: pe.edu.upeu.megafarma.app.domain.model.Periodo) =
         api.dashboard(periodo.name).mapear { it.aDominio() }
 
-    override suspend fun resumen(tipo: pe.edu.upeu.megafarma.app.domain.model.Periodo, fecha: String?) =
-        api.reporteResumen(tipo.name, fecha).mapear { it.aDominio() }
+    override suspend fun resumen(
+        tipo: pe.edu.upeu.megafarma.app.domain.model.Periodo,
+        fecha: String?,
+        paginaSerie: Int,
+        paginaTop: Int,
+        tamanio: Int
+    ) = api.reporteResumen(tipo.name, fecha, paginaSerie, paginaTop, tamanio).mapear { it.aDominio() }
 }
 
 class ClienteRepositoryImpl(private val api: MegafarmaApi) : pe.edu.upeu.megafarma.app.domain.repository.ClienteRepository {
@@ -176,7 +192,8 @@ class ClienteRepositoryImpl(private val api: MegafarmaApi) : pe.edu.upeu.megafar
 
 class UsuarioRepositoryImpl(private val api: MegafarmaApi) : pe.edu.upeu.megafarma.app.domain.repository.UsuarioRepository {
 
-    override suspend fun listar() = api.usuarios().mapear { lista -> lista.map { it.aDominio() } }
+    override suspend fun listar(texto: String, pagina: Int, tamanio: Int) =
+        api.usuarios(texto, pagina, tamanio).mapear { p -> p.aDominio { it.aDominio() } }
 
     override suspend fun roles() = api.roles().mapear { lista -> lista.map { it.aDominio() } }
 

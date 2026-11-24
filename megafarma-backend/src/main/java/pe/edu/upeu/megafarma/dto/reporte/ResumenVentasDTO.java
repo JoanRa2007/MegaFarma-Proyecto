@@ -11,6 +11,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pe.edu.upeu.megafarma.dto.PaginaResponseDTO;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -47,4 +48,7 @@ public class ResumenVentasDTO {
     private List<ReporteVentasDTO.Grupo> porVendedor;
     /* Serie del periodo anterior, con los mismos tramos, para comparar en el grafico. */
     private List<ReporteVentasDTO.Grupo> serieAnterior;
+    /* Tablas del reporte: se paginan en servidor, de 10 en 10. */
+    private PaginaResponseDTO<ReporteVentasDTO.Grupo> serieTabla;
+    private PaginaResponseDTO<ProductoMasVendidoDTO> topProductosTabla;
 }

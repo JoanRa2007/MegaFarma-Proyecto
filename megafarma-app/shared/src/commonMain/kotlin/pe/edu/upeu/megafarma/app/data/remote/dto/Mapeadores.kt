@@ -4,6 +4,7 @@ import pe.edu.upeu.megafarma.app.domain.model.Categoria
 import pe.edu.upeu.megafarma.app.domain.model.DetalleVenta
 import pe.edu.upeu.megafarma.app.domain.model.GrupoReporte
 import pe.edu.upeu.megafarma.app.domain.model.Lote
+import pe.edu.upeu.megafarma.app.domain.model.Pagina
 import pe.edu.upeu.megafarma.app.domain.model.Producto
 import pe.edu.upeu.megafarma.app.domain.model.ProductoVendido
 import pe.edu.upeu.megafarma.app.domain.model.ReporteInventario
@@ -14,6 +15,10 @@ import pe.edu.upeu.megafarma.app.domain.model.StockProducto
 import pe.edu.upeu.megafarma.app.domain.model.Venta
 
 /* Conversion DTO (JSON) -> modelo de dominio. */
+
+fun <T, R> PaginaDto<T>.aDominio(transformar: (T) -> R) = Pagina(
+    contenido.map(transformar), pagina, totalPaginas, totalElementos
+)
 
 fun LoginResponseDto.aDominio() = Sesion(token, username, nombreCompleto, rol, permisos, debeCambiarPassword)
 
@@ -75,7 +80,8 @@ fun ResumenVentasDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Resumen
     ventasAnuladas, totalAnulado, totalPeriodoAnterior, variacionPorcentaje,
     serie.map { it.aDominio() }, topProductos.map { it.aDominio() }, porCategoria.map { it.aDominio() },
     porMedioPago.map { it.aDominio() }, boletasEmitidas, facturasEmitidas,
-    porVendedor.map { it.aDominio() }, serieAnterior.map { it.aDominio() }
+    porVendedor.map { it.aDominio() }, serieAnterior.map { it.aDominio() },
+    serieTabla.aDominio { it.aDominio() }, topProductosTabla.aDominio { it.aDominio() }
 )
 
 fun ClienteDto.aDominio() = pe.edu.upeu.megafarma.app.domain.model.Cliente(id, tipoDocumento, numeroDocumento, nombre, telefono)

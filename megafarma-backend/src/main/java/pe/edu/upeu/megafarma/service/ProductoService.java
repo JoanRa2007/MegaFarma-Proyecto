@@ -17,6 +17,7 @@ import java.util.List;
 public interface ProductoService {
 
     PaginaResponseDTO<ProductoResponseDTO> listar(String q, boolean incluirInactivos,
+                                                  boolean soloInactivos,
                                                   int pagina, int tamanio,
                                                   String ordenarPor, String direccion);
 

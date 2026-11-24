@@ -146,6 +146,14 @@ data class Venta(
     val anulada: Boolean get() = estado == "ANULADA"
 }
 
+/* Pagina generica para cualquier tabla; el servidor envia siempre 10 filas. */
+data class Pagina<T>(
+    val elementos: List<T>,
+    val pagina: Int,
+    val totalPaginas: Int,
+    val totalElementos: Long
+)
+
 /* Una pagina de resultados de la busqueda de ventas (HU-11). */
 data class PaginaVentas(
     val ventas: List<Venta>,
@@ -271,7 +279,10 @@ data class ResumenVentas(
     val facturasEmitidas: Int = 0,
     val porVendedor: List<GrupoReporte> = emptyList(),
     /* Mismos tramos del periodo anterior, para comparar en el grafico. */
-    val serieAnterior: List<GrupoReporte> = emptyList()
+    val serieAnterior: List<GrupoReporte> = emptyList(),
+    /* Tablas del reporte, paginadas en el servidor de 10 en 10. */
+    val serieTabla: Pagina<GrupoReporte> = Pagina(emptyList(), 0, 0, 0),
+    val topProductosTabla: Pagina<ProductoVendido> = Pagina(emptyList(), 0, 0, 0)
 )
 
 data class Usuario(

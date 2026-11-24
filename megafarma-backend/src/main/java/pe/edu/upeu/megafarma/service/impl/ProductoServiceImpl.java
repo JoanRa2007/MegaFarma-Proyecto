@@ -65,6 +65,7 @@ public class ProductoServiceImpl implements ProductoService {
     // @Transactional: todo el metodo es una transaccion: si lanza excepcion se deshacen los cambios (rollback)
     @Transactional(readOnly = true)
     public PaginaResponseDTO<ProductoResponseDTO> listar(String q, boolean incluirInactivos,
+                                                         boolean soloInactivos,
                                                          int pagina, int tamanio,
                                                          String ordenarPor, String direccion) {
 
@@ -72,7 +73,7 @@ public class ProductoServiceImpl implements ProductoService {
                 pagina, tamanio, ordenarPor, direccion, CAMPOS_ORDEN, "nombre");
 
         Page<Producto> resultado = productoRepository.buscar(
-                PaginacionUtil.patron(q), incluirInactivos, pageable);
+                PaginacionUtil.patron(q), incluirInactivos, soloInactivos, pageable);
 
         Map<Long, Integer> stock = stockDisponible();
 
