@@ -7,10 +7,12 @@
     <!--
         usesCleartextTraffic: permite http:// (sin https) para hablar con el backend
         local (10.0.2.2 desde el emulador o la IP de la laptop). En produccion se usaria https.
+        allowBackup=false: la sesion (token) no se copia en los respaldos de Android.
     -->
     <application
         android:name=".MegafarmaApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"

@@ -1,0 +1,18 @@
+C4Component
+title Nivel 3 - Componentes del modulo compartido (commonMain)
+Container_Boundary(shared, "Modulo compartido (shared/commonMain)") {
+  Component(ui, "Pantallas Compose", "Compose Multiplatform", "Login, Caja, Productos, Dashboard, Reportes y Alertas")
+  Component(vm, "ViewModels", "Kotlin + StateFlow", "Gestionan UiState y eventos de cada pantalla")
+  Component(uc, "Casos de Uso", "Kotlin (domain/usecase)", "IniciarSesion, RegistrarVenta, RegistrarEntrada")
+  Component(ri, "Interfaces de Repositorio", "Kotlin (domain/repository)", "Contratos desacoplados que el dominio necesita")
+  Component(repo, "Repositorios Impl", "Kotlin (data/repository)", "Implementan contratos y mapean DTO a dominio")
+  Component(http, "Cliente HTTP y API", "Ktor Client (data/remote)", "Consume /api/v1 con JWT, JSON y timeouts")
+  Component(sec, "Almacen Local", "expect/actual (data/local)", "Guarda y lee token JWT y URL en Android, iOS y Web")
+}
+Rel(ui, vm, "Observa UiState y envia acciones")
+Rel(vm, uc, "Invoca")
+Rel(uc, ri, "Depende del contrato")
+Rel(repo, ri, "Implementa")
+Rel(repo, http, "Usa para peticiones remotas")
+Rel(repo, sec, "Usa para sesion")
+Rel(http, sec, "Lee token JWT y URL")

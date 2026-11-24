@@ -8,8 +8,12 @@ package pe.edu.upeu.megafarma;
  */
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 // @SpringBootTest: levanta el contexto completo de Spring para la prueba
 @SpringBootTest
@@ -19,7 +23,11 @@ class MegafarmaBackendApplicationTests {
 
     /* Arranca el contexto completo: Flyway crea el esquema y Hibernate lo valida. */
     // @Test: marca el metodo como un caso de prueba
+    @Autowired
+    private ApplicationContext context;
+
     @Test
     void contextLoads() {
+        assertThat(context).isNotNull();
     }
 }
